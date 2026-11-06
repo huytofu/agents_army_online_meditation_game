@@ -39,7 +39,7 @@
     // "tree_dead", // glb file needs revision
     "tree_tall",
     "tree_yellow",
-    // "vine_noose", // glb file needs revision
+    "vine_noose",
     "water_puddle",
     "worm"
   ],
