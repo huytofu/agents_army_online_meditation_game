@@ -8,7 +8,7 @@ import { biomeAt, chunkIndex, paletteOf, riverZ } from "./meta.js";
 const GROUND = {
   moss_plain: 0x6f8f62,
   cathedral_trees: 0x3e4a40,
-  river: 0x6e8f62,
+  river: 0x4f7f8c,
   waterfall_gorge: 0x6d7270,
   valley_bloom: 0x8aaa62,
   strange_fauna: 0x3a3550,
@@ -331,8 +331,8 @@ function buildWater(meta, samples) {
     const tx = next.x - prev.x || 1;
     const tz = next.z - prev.z;
     const length = Math.hypot(tx, tz) || 1;
-    const px = (-tz / length) * 9;
-    const pz = (tx / length) * 9;
+    const px = (-tz / length) * 16;
+    const pz = (tx / length) * 16;
     positions.push(sample.x + px, sample.y, sample.z + pz);
     positions.push(sample.x - px, sample.y, sample.z - pz);
   }
@@ -345,13 +345,15 @@ function buildWater(meta, samples) {
   }
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
-  const material = new THREE.MeshLambertMaterial({
+  const material = new THREE.MeshBasicMaterial({
     color: 0x6e9aa3,
     transparent: true,
-    opacity: 0.72,
+    opacity: 0.9,
     side: THREE.DoubleSide,
+    depthWrite: false,
   });
   const mesh = new THREE.Mesh(geometry, material);
+  mesh.renderOrder = 2;
   mesh.userData.owned = true;
   return mesh;
 }

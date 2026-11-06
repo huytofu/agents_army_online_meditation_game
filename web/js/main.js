@@ -48,6 +48,7 @@ let yaw = 0;
 let pitch = 0;
 let view = "third";
 let walkPhase = 0;
+let avatarSeated = false;
 let walkLimit = 1996;
 let meta = null;
 let world = null;
@@ -170,7 +171,10 @@ function frame() {
   if (diorama) diorama.update(performance.now() / 1000);
   avatar.object.position.set(x, y, z);
   avatar.object.rotation.y = yaw;
-  avatar.setSeated(sitting);
+  if (sitting !== avatarSeated) {
+    avatarSeated = sitting;
+    avatar.setSeated(sitting);
+  }
   if (minimap) minimap.update(x, z, yaw);
   placeCamera(dt);
   renderer.render(scene, camera);
@@ -367,7 +371,6 @@ async function standUp() {
   seat = null;
   if (world) world.setVeil(null);
   setSeated(false);
-  avatar.setSeated(false);
   if (result.ok) {
     x = result.pose.x;
     y = result.pose.y;
