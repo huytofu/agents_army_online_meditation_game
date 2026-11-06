@@ -139,6 +139,17 @@ function drawPlate(ink, meta) {
   ink.stroke();
   ink.restore();
 
+  const gatherings = meta.seat_fields || [];
+  for (const field of gatherings) {
+    const [px, py] = project(meta, field.x, field.z);
+    const radius = Math.max(6, field.radius * metersToPixels);
+    ink.beginPath();
+    ink.arc(px, py, radius, 0, Math.PI * 2);
+    ink.strokeStyle = "rgba(244, 241, 234, 0.95)";
+    ink.lineWidth = 1.5;
+    ink.stroke();
+  }
+
   const landmarkPoints = meta.landmarks.map((landmark) => project(meta, landmark.x, landmark.z));
   ink.font = "12px Palatino, Georgia, serif";
   ink.textAlign = "center";
@@ -163,13 +174,22 @@ function drawPlate(ink, meta) {
   ink.font = "11px Palatino, Georgia, serif";
   ink.textAlign = "left";
   ink.textBaseline = "top";
-  const labels = meta.landmarks.map((landmark) => {
-    const [px, py] = project(meta, landmark.x, landmark.z);
-    const text = LANDMARK_LABELS[landmark.name] || title(landmark.name);
-    const width = ink.measureText(text).width + 8;
-    const height = 14;
-    return { px, py, text, w: width, h: height, x: px - width / 2, y: py - height - 7 };
-  });
+  const labels = [
+    ...gatherings.map((field) => {
+      const [px, py] = project(meta, field.x, field.z);
+      const text = BIOME_LABELS[field.name] || title(field.name);
+      const width = ink.measureText(text).width + 8;
+      const height = 14;
+      return { px, py, text, w: width, h: height, x: px - width / 2, y: py - height - 8, kind: "field" };
+    }),
+    ...meta.landmarks.map((landmark) => {
+      const [px, py] = project(meta, landmark.x, landmark.z);
+      const text = LANDMARK_LABELS[landmark.name] || title(landmark.name);
+      const width = ink.measureText(text).width + 8;
+      const height = 14;
+      return { px, py, text, w: width, h: height, x: px - width / 2, y: py - height - 7, kind: "landmark" };
+    }),
+  ];
   separateLabels(labels);
   for (const label of labels) {
     ink.strokeStyle = "rgba(246, 231, 168, 0.9)";
@@ -178,14 +198,21 @@ function drawPlate(ink, meta) {
     ink.moveTo(label.px, label.py);
     ink.lineTo(label.x + label.w / 2, label.y + label.h / 2);
     ink.stroke();
-    ink.fillStyle = "#1d3328";
-    ink.beginPath();
-    ink.arc(label.px, label.py, 4.5, 0, Math.PI * 2);
-    ink.fill();
-    ink.fillStyle = "#f6e7a8";
-    ink.beginPath();
-    ink.arc(label.px, label.py, 2.6, 0, Math.PI * 2);
-    ink.fill();
+    if (label.kind === "field") {
+      ink.fillStyle = "#f4f1ea";
+      ink.beginPath();
+      ink.arc(label.px, label.py, 3.2, 0, Math.PI * 2);
+      ink.fill();
+    } else {
+      ink.fillStyle = "#1d3328";
+      ink.beginPath();
+      ink.arc(label.px, label.py, 4.5, 0, Math.PI * 2);
+      ink.fill();
+      ink.fillStyle = "#f6e7a8";
+      ink.beginPath();
+      ink.arc(label.px, label.py, 2.6, 0, Math.PI * 2);
+      ink.fill();
+    }
     ink.fillStyle = "rgba(29, 51, 40, 0.88)";
     ink.fillRect(label.x, label.y, label.w, label.h);
     ink.fillStyle = "#f4f1ea";
@@ -251,7 +278,13 @@ export function createMinimap(meta) {
   const key = document.querySelector("#minimap-key");
   const here = document.createElement("strong");
   const place = document.createElement("span");
+  const gatherings = document.createElement("ul");
   const list = document.createElement("ul");
+  const fieldRows = [...(meta.seat_fields || [])].map((field) => {
+    const item = document.createElement("li");
+    gatherings.append(item);
+    return { field, item };
+  });
   const rows = [...meta.landmarks]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((landmark) => {
@@ -259,7 +292,7 @@ export function createMinimap(meta) {
       list.append(item);
       return { landmark, item };
     });
-  key.replaceChildren(here, place, list);
+  key.replaceChildren(here, place, gatherings, list);
 
   const plate = document.createElement("canvas");
   plate.width = SIZE;
@@ -280,6 +313,16 @@ export function createMinimap(meta) {
       const biome = biomeAt(meta, x, z);
       here.textContent = `${Math.round(x)} m, ${Math.round(z)} m`;
       place.textContent = `${title(biome || "forest")} · facing ${facingName(yaw)}`;
+      for (const row of fieldRows) {
+        const meters = Math.hypot(row.field.x - x, row.field.z - z);
+        const label = BIOME_LABELS[row.field.name] || title(row.field.name);
+        if (meters < 50) {
+          row.item.textContent = `${label} · around you`;
+          continue;
+        }
+        const heading = compassCode(Math.atan2(row.field.x - x, row.field.z - z));
+        row.item.textContent = `${label} · ${heading} · ${formatDistance(meters)}`;
+      }
       for (const row of rows) {
         const meters = Math.hypot(row.landmark.x - x, row.landmark.z - z);
         const heading = compassCode(Math.atan2(row.landmark.x - x, row.landmark.z - z));

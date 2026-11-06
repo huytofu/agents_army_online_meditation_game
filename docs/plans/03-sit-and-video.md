@@ -24,12 +24,12 @@ isProject: false
 
 ## The forest these seats belong to
 
-The walkable world is the current 4000 m square, `x` and `z` in `[-2000, 2000]`. It is not one 400 m moss field. Spawn stays `(-24, 0)` in the moss plain, and that point is not inside a seat clearing.
+The walkable world is the current 4000 m square, `x` and `z` in `[-2000, 2000]`. It is not one 400 m moss field. Spawn stays `(-24, 0)` in the moss plain, inside the moss gathering, with 14 m of open ground so you do not appear on a cushion.
 
-The 4256 cushions already in Postgres are the only seats:
+The 1364 cushions in Postgres are the only seats:
 
-- Thirteen round clearings on the 8 m hex lattice, a few hundred cushions each: dew camp, mushroom yard, bloom bowl, petal steps, vine loft, fall ledge, fern hollow, bog ring, herd shade, orchard glow, spore camp, nave roots, and mirror shelf.
-- Fifty-nine isolated cushions on the 220 m grid, each at least 80 m outside every clearing and 16 m off the river.
+- Twelve gatherings, one in each biome, 100 cushions each. They are rejection-sampled at least 10 m apart, not a hex or a row.
+- One hundred sixty-four isolated cushions on the 280 m grid, each at least 10 m from a gathering cushion and 16 m off the wet river.
 
 A clearing cushion and an isolated cushion use the same recipe, claim, and sit rules. The archetype still comes from the spot row, which follows that spot's biome. All twelve biomes have four archetypes. The six that arrived with the wide forest are carnivorous bog, lantern orchard, fern sea, hanging vines, amber herd, and salt mirror. Their layouts are below with the original six.
 
