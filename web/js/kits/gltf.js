@@ -23,7 +23,7 @@ export async function loadCatalogGltf(kind, name) {
   const data = await manifest();
   const names = kind === "landmarks" ? data.landmarks : data.kits;
   if (!names.includes(name)) return null;
-  return loadOptionalGltf(`/assets/${kind}/${name}.glb?v=2`);
+  return loadOptionalGltf(`/assets/${kind}/${name}.glb?v=3`);
 }
 
 function loadOptionalGltf(url) {
