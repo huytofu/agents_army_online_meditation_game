@@ -4,7 +4,7 @@ Generator for committed files: TripoSR (`stabilityai/TripoSR`), MIT, copyright 2
 
 Hunyuan3D-2 previews are not committed. The game server does not run either model.
 
-Each file is one object, Y-up, base on y = 0, 1 unit = 1 meter. Scatter kits are a single mesh of at most 5000 triangles. Landmarks are at most 80000 triangles.
+Each file is one object, Y-up, base on y = 0, 1 unit = 1 meter. Scatter kits are a single mesh of at most 50000 triangles. Landmarks are at most 400000 triangles. Reference images for a rebuild live next to the meshes in `kits/references/` and `landmarks/references/`.
 
 If a name is missing, the procedural builder in `web/js/kits/` is the mesh the player sees.
 

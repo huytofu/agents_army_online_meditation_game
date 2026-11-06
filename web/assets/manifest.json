@@ -7,18 +7,18 @@
     "butterfly",
     "dirt_patch",
     "dragonfly",
-    // "epiphyte", // glb file needs revision
+    "epiphyte",
     "fallen_leaves",
-    // "fiddlehead", // glb file needs revision
-    // "flower_blue", // glb file needs revision
-    // "flower_gold", // glb file needs revision
-    // "flower_pink", // glb file needs revision
-    // "flower_white", // glb file needs revision
-    // "glass_leaf", // glb file needs revision
+    "fiddlehead",
+    "flower_blue",
+    "flower_gold",
+    "flower_pink",
+    "flower_white",
+    "glass_leaf",
     "glow_moth",
     "grass_patch",
     // "grazer", // glb file needs revision
-    // "heron", // glb file needs revision
+    "heron",
     "kite_bird",
     "lantern_frog",
     "loris",
@@ -27,19 +27,19 @@
     "mushroom_brown",
     "mushroom_gold",
     "mushroom_white",
-    // "pitcher", // glb file needs revision
+    "pitcher",
     "rabbit",
     // "snap_maw", // glb file needs revision
     "songbird",
     // "spiral_tree", // glb file needs revision
     "staghorn",
-    // "sundew", // glb file needs revision
+    "sundew",
     "tree_branched",
     "tree_broad",
     // "tree_dead", // glb file needs revision
     "tree_tall",
     "tree_yellow",
-    // "vine_noose", // glb file needs revision
+    "vine_noose",
     "water_puddle",
     "worm"
   ],

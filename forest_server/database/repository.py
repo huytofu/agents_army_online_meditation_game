@@ -29,12 +29,29 @@ async def spot_count() -> int:
 
 
 async def seed_spots_if_empty() -> int:
+    spots = generate_spots()
+    rows = [spot.as_row() for spot in spots]
+    first = rows[0]
     async with get_session() as session:
         existing = int(await session.scalar(text("SELECT COUNT(*) FROM spots")) or 0)
-        if existing:
-            return existing
-        rows = [spot.as_row() for spot in generate_spots()]
+        if existing == len(rows):
+            current = (
+                await session.execute(text("SELECT x, z FROM spots WHERE id = 1"))
+            ).one()
+            if float(current.x) == first["x"] and float(current.z) == first["z"]:
+                return existing
+        await session.execute(text("DELETE FROM spot_claims"))
+        await session.execute(text("DELETE FROM spots"))
         await session.execute(INSERT_SPOTS, rows)
+        await session.execute(
+            text(
+                """
+                UPDATE sessions
+                SET pose = pose || '{"mode": "walk", "spot_id": null}'::jsonb
+                WHERE pose->>'mode' = 'sit'
+                """
+            )
+        )
         await session.commit()
         return len(rows)
 
