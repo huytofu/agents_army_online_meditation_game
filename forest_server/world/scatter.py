@@ -3,7 +3,7 @@
 import math
 
 from forest_server.world.biomes import biome_at, chunk_origin
-from forest_server.world.constants import CHUNK_SIZE, WORLD_MAX, WORLD_MIN, WORLD_SEED
+from forest_server.world.constants import CHUNK_SIZE, SPAWN_X, SPAWN_Z, WORLD_MAX, WORLD_MIN, WORLD_SEED
 from forest_server.world.ground import ground_height
 from forest_server.world.rng import mulberry32
 
@@ -231,6 +231,8 @@ def scatter_for_chunk(cx: int, cz: int) -> list[dict]:
                     if not (WORLD_MIN < x < WORLD_MAX and WORLD_MIN < z < WORLD_MAX):
                         continue
                     if biome_at(x, z) != biome:
+                        continue
+                    if math.hypot(x - SPAWN_X, z - SPAWN_Z) < 10.0:
                         continue
                     if isinstance(scale_spec, tuple):
                         scale = scale_spec[0] + rng() * (scale_spec[1] - scale_spec[0])
