@@ -1,6 +1,6 @@
 ---
 name: Phase 2 Forest Catalog
-overview: "Replace the prototype grove with a streamed 4000 m forest: twelve biomes, a river corridor, thirteen hex clearings of a few hundred seats, isolated seats, and twelve landmarks. Python generates all of it."
+overview: "Replace the prototype grove with a streamed 4000 m forest: twelve biomes, a river corridor, thirteen hex clearings, isolated seats, and twelve landmarks. Python places them. Offline open 3D models sculpt the unusual meshes."
 todos:
   - id: p2-generate
     content: Biome map, seat fields, isolated seats, scatter, landmarks, and pure tests
@@ -8,8 +8,11 @@ todos:
   - id: p2-api
     content: Seed Postgres once and serve meta plus chunk JSON
     status: pending
+  - id: p2-meshes
+    content: Offline WorldClaw-style meshes for unusual kits and landmarks, with procedural fallback
+    status: pending
   - id: p2-stream
-    content: 3x3 chunk client, the full kit catalog, cushions, river, biome light
+    content: 3x3 chunk client, kits, committed glTFs, cushions, river, biome light
     status: pending
 isProject: false
 ---
@@ -18,13 +21,13 @@ isProject: false
 
 > **For agentic workers:** Implement this phase only. Phase 1 already walks a 96 m moss pad. Replace that pad with streamed chunks. Do not add sitting, YouTube, or other players.
 
-**This file replaces the phase 2 section of `00-master-plan.md`.** The master plan still says a 400 m square, one hex of thousands of seats, and six biomes. Ignore those three decisions. When the two files disagree, follow this file. Do not rename phase 1's ground terms, ports, speed, spawn, token rules, or the 5 m exclusion constant.
+**This file replaces the phase 2 section of `00-master-plan.md`.** The master plan still says a 400 m square, one hex of thousands of seats, six biomes, and no glTF. Ignore those decisions. When the two files disagree, follow this file. Do not rename phase 1's ground terms, ports, speed, spawn, token rules, or the 5 m exclusion constant. Do not replace `ground_height` with a generated height field.
 
 **Goal:** A person can walk out of the moss spawn, cross a river, and enter a different biome without a reload. Seat cushions appear in scattered clearings of a few hundred seats, and as single cushions in quiet places. They do not carpet the map.
 
-**Architecture:** Python is the only forest generator. `GET /api/world/meta` and `GET /api/world/chunks/{cx}/{cz}` return JSON. The browser renders that JSON. It does not keep a second copy of the biome map. Spots are inserted once into this game's Postgres.
+**Architecture:** Python is the only forest generator for layout. It decides biomes, the river, seats, scatter points, and landmark anchors, and serves them as JSON. An offline 3D model, used the way [Hunyuan3D-WorldClaw](https://github.com/Tencent-Hunyuan/Hunyuan3D-WorldClaw) does, sculpts the unusual kit and landmark meshes before the game runs. The browser renders the JSON plus those committed files. It does not keep a second copy of the biome map, and it does not call a model. Spots are inserted once into this game's Postgres.
 
-**Tech Stack:** The phase 1 server and Three.js client. Still no websocket.
+**Tech Stack:** The phase 1 server and Three.js client, plus committed glTF for the meshes named below. Still no websocket. The play server never loads PyTorch, Blender, or a GPU model.
 
 ## Decisions this phase locks
 
@@ -32,7 +35,8 @@ isProject: false
 - Seats are **not** one world-sized hex lattice. There are **13 clearings**. Each clearing is its own hex field of a few hundred seats. **59 isolated seats** sit far from those clearings and far from each other.
 - Biomes are the twelve regions below. The river is a **corridor** along a curve, not a rectangle. It cuts through the rectangles and ends in the waterfall gorge.
 - Plants come in two opposing sets: carnivorous kits live in the bog, and the flower valley, fern sea, and moss plain do not use them. Animals are meshes with local motion. They are not AI, not physics bodies, and not players.
-- Landmark and scatter variety is the product of this phase. Sitting, recipes, and other people stay in later phases. Archetype **names** are chosen here so phase 3 can attach recipes without renaming spots.
+- Landmark and scatter variety is the product of this phase. The weird plants, animals, and landmark sculptures come from an offline open 3D generator. Seats, the river curve, and the ground formula do not.
+- Sitting, recipes, and other people stay in later phases. Archetype **names** are chosen here so phase 3 can attach recipes without renaming spots.
 
 ## Global Constraints
 
@@ -92,8 +96,10 @@ The wet channel is the middle `16` m, `abs(z - river_z(x)) < 16`. No seat is pla
 
 ## Files
 
-- Create: `forest_server/world/biomes.py`, `forest_server/world/spots.py`, `forest_server/world/scatter.py`, `forest_server/world/landmarks.py`, `forest_server/database/repository.py`, `forest_server/routers/world.py`, `web/js/meta.js`, `web/js/chunks.js`, `web/js/kits/plants.js`, `web/js/kits/carnivores.js`, `web/js/kits/animals.js`, `web/js/kits/terrain.js`, `tests/test_spots.py`, `tests/test_scatter.py`
+- Create: `forest_server/world/biomes.py`, `forest_server/world/spots.py`, `forest_server/world/scatter.py`, `forest_server/world/landmarks.py`, `forest_server/database/repository.py`, `forest_server/routers/world.py`, `web/js/meta.js`, `web/js/chunks.js`, `web/js/kits/plants.js`, `web/js/kits/carnivores.js`, `web/js/kits/animals.js`, `web/js/kits/terrain.js`, `web/js/kits/gltf.js`, `web/assets/PROMPTS.md`, `tests/test_spots.py`, `tests/test_scatter.py`, `tests/test_assets.py`
 - Modify: `forest_server/world/constants.py` (world extents only), `forest_server/app.py` (seed on startup, include the world router before the static mount), `web/js/main.js`, `web/js/kits/index.js`, `web/js/kits/materials.js`
+- Commit generated files only after they pass the mesh rules below: `web/assets/kits/<name>.glb`, `web/assets/landmarks/<name>.glb`, and a copy of the generator license if that license requires it.
+- Vendor Three.js r170 `GLTFLoader` and every local file it imports under `web/vendor/`. The import map points at those files. Do not fetch them from a CDN when the page loads.
 - Leave `forest_server/world/recipes.py` for phase 3. This phase only stores the archetype name.
 
 `makeKit` stays the only public kit constructor. The new kit modules are implementation files that `index.js` calls.
@@ -281,11 +287,75 @@ Palettes are fog, sun, and the colors the kits actually use:
 
 `/health` `spots` becomes `4256`.
 
-## Task 3: Stream the client
+## Task 3: Offline meshes for biomes and landmarks
+
+Use the WorldClaw pattern, not a live model. [Hunyuan3D-WorldClaw](https://github.com/Tencent-Hunyuan/Hunyuan3D-WorldClaw) (paper [arXiv:2608.05248](https://arxiv.org/abs/2608.05248)) plans a scene from one text prompt, builds a terrain, then reconstructs editable textured meshes and places them on that terrain. This phase keeps the terrain, seats, and placement in Python. The model only sculpts meshes.
+
+The public WorldClaw repository currently contains the paper announcement and assets. It does not contain source, weights, an install command, or a license. Do not block this phase on cloning it and expecting it to run. Do not vendor an unofficial reimplementation.
+
+Generator order:
+
+1. If Tencent has published WorldClaw code and a license that allows committing the outputs in this repo, use that pipeline for the prompts below.
+2. Otherwise use a released open Hunyuan3D image-to-3D model. The WorldClaw paper refines object meshes with Hunyuan3D. The public weights for that step are [Hunyuan3D-2](https://github.com/Tencent-Hunyuan/Hunyuan3D-2), under the Tencent Hunyuan 3D 2.0 Community License. That license does not cover the European Union, the United Kingdom, or South Korea, and distributing the weights has notice rules. Read the license before committing a mesh. Tencent's text says outputs by themselves are not model derivatives, and that Tencent claims no rights in outputs you generate. If the license still forbids committing the file, skip the file and keep the procedural builder.
+3. If no licensed generator is available, ship the procedural builders and write the reason in `web/assets/PROMPTS.md`. The walk must still work.
+
+How to run it, once, on a machine with a GPU. Not in `pytest`, not in uvicorn, not in the browser:
+
+- One prompt, one object. The prompt may not ask for a forest map, a river, or seats. Those already exist.
+- Make a single object on a plain background, then run image-to-3D. Export one glTF binary, Y-up, base on `y = 0`, 1 unit = 1 meter, at the unscaled size named in the kit and landmark sections. The chunk `scale` field multiplies that file.
+- A scatter kit used more than ten times in one chunk must be a single geometry and a single material, at most `5000` triangles, with one albedo at most `1024` px. Merge parts before commit so `InstancedMesh` can draw it.
+- A landmark file may be a group, at most `80000` triangles, textures at most `2048` px. Only one copy of each landmark is drawn.
+- No skeleton and no embedded clip. Sway, bob, hop, and scroll stay in the client and move the whole instance.
+- Write the prompt, the generator name, and the revision into `web/assets/PROMPTS.md` next to the filename.
+
+Kits that should be generated when a generator is available: `pitcher`, `sundew`, `snap_maw`, `acid_cup`, `vine_noose`, `spiral_tree`, `blossom_tree`, `glass_leaf`, `staghorn`, `fiddlehead`, `epiphyte`, `heron`, `grazer`, `loris`, `dragonfly`, `kite_bird`, `glow_moth`, `lantern_frog`, `beetle_lamp`, `brine_skipper`.
+
+Kits that stay code, because they repeat or they are the ground language: `moss_mound`, `mushroom`, `fern`, `tree`, `cushion_moss`, `dead_log`, `boulder`, `river_stone`, `reed`, `wildflower`, `seed_head`, `lily_pad`, `vine_strand`, `cliff_wall`, `waterfall_sheet`, `mist_card`, `pool_disc`, `ridge_card`, `rainbow_card`, `spore`, `crystal_shard`, `salt_crust`, `bone_rib`, `seat_cushion`.
+
+Landmark files, one each, named `great_fall`, `cathedral_heart`, `spore_well`, `bloom_ridge`, `pitcher_throne`, `lantern_monarch`, `mirror_pan`, `heron_bend`, `vine_gate`, `amber_circle`, `fern_nave`, `sundew_jewel`. The Python block list still exists and is still what the chunk JSON and the tests assert. If the glTF loaded, the client draws the file at the anchor and does not also draw those blocks. If it did not load, the client draws the blocks.
+
+Prompts, used as written:
+
+- `pitcher`: a single carnivorous pitcher plant, 1.6 m tall, green vase `#6f8f3a`, red throat `#c4554a`, one lid, no ground
+- `sundew`: a low sundew, pink stalks, pale sticky drops, no pot
+- `snap_maw`: one open snap trap, red lobes, pale inner mouth, no ground
+- `acid_cup`: a low cup of yellow-green liquid, translucent, no ground
+- `vine_noose`: one hanging purple vine loop, no tree
+- `spiral_tree`: one twisted spiral trunk, `#6a4a78`, no forest
+- `blossom_tree`: one small tree with pink and gold blossom spheres, no ground
+- `glass_leaf`: one translucent leaf, teal and pink, no stem forest
+- `staghorn`: one staghorn fern, flat antlers, `#7ea15a`
+- `fiddlehead`: one green fern crozier
+- `epiphyte`: one air plant with green leaves and a red bract
+- `heron`: one still heron, 1.3 m, long pale legs, blue-grey body, beak, no water
+- `grazer`: one four-legged grazer, amber hide `#c47a3a`, 1.8 m long, head lowered, no herd
+- `loris`: one small clinging animal, 0.45 m, two pale glowing eyes
+- `dragonfly`: one dragonfly, four translucent wings
+- `kite_bird`: one red bird in a wing chevron, wingspan under 1 m
+- `glow_moth`: one moth, pale pink glowing wings
+- `lantern_frog`: one small frog with a yellow-green glowing belly
+- `beetle_lamp`: one beetle, dark shell, one glowing yellow-green spot
+- `brine_skipper`: one tiny pink shrimp-like animal
+- `great_fall`: a short waterfall cliff, pale sheets of water, mist, one pool, no people
+- `cathedral_heart`: seven huge dark trees in a ring, trunks and canopy only
+- `spore_well`: a ring of spiral trees and glowing yellow-green spores
+- `bloom_ridge`: a flower ridge with tall pale cards and pink, gold, and blue flowers
+- `pitcher_throne`: one giant pitcher surrounded by smaller carnivorous plants, no people
+- `lantern_monarch`: one huge blossom tree and a ring of glass leaves and moths
+- `mirror_pan`: a wide pink salt pool, white crust, pale crystal spikes
+- `heron_bend`: three herons, reeds, and river stones, no boat
+- `vine_gate`: two rock posts with a curtain of vines, air plants, and small clinging animals
+- `amber_circle`: six amber grazers standing in a circle, seed heads, three red birds
+- `fern_nave`: a path between two rows of tall ferns and staghorns, center empty
+- `sundew_jewel`: one giant sundew with smaller sundews and pale crystals
+
+`tests/test_assets.py` does not run a model. It fails if a committed `.glb` is named for an unknown kit or landmark, if a scatter-kit file has more than one mesh or more than `5000` triangles, or if a landmark file has more than `80000` triangles. Missing files are allowed. `pytest` must pass on a machine with no GPU.
+
+## Task 4: Stream the client
 
 Replace the phase 1 plane and the hand-placed props. Spawn, pointer lock, both cameras, and the `3.2` m/s walk stay. Clamp to `[-1996, 1996]` only.
 
-`web/js/kits/index.js` exports `makeKit(name)` for every kit above. Shape rules, unscaled, base on `y = 0` unless noted:
+`web/js/kits/index.js` exports `makeKit(name)` for every kit above. If `web/assets/kits/<name>.glb` exists, load that file through the vendored glTF loader and return it at the unscaled size. Otherwise build the procedural shape. Shape rules, unscaled, base on `y = 0` unless noted:
 
 - Keep phase 1 `moss_mound`, `mushroom`, `fern`, and `tree` (tapered trunk `10` m, three canopy blobs).
 - `cushion_moss`: a flatter brighter mound, moss `#7ea15a`.
@@ -333,9 +403,10 @@ When `biome_at` of the player changes, lerp fog color, fog density, and sun colo
 - `/health` reports `"spots": 4256`. Reloading the process does not increase that count.
 - From the spawn, a person can walk to the river ribbon and on into the lantern orchard without a reload. The light changes. Cushions are visible inside the loaded part of a clearing and are absent from the open ground between clearings.
 - The great-fall chunk payload includes a `waterfall_sheet` whose scale is at least `8`. The bog chunk used in the tests includes a pitcher and no blossom tree.
+- Any committed glTF passes `tests/test_assets.py`. A missing glTF still leaves a visible procedural kit. The page does not request a model, a weight file, or a CDN mesh.
 
 Commit once: the walkable forest is a 4000 m catalog of places, not one field of seats.
 
 ## What this phase does not do
 
-Do not build seated recipes, claims, YouTube, or other players. Phase 3 must grow a recipe for every new archetype name above before those seats can be sat. The original six archetype sets keep the names phase 3 already lists. That recipe work is a later change to `docs/plans/03-sit-and-video.md`, not part of this build.
+Do not build seated recipes, claims, YouTube, or other players. Do not call WorldClaw, Hunyuan3D, or any other generator from the game process or from the browser. Do not replace the ground-height terms, the seat coordinates, or the river curve with a generated terrain. Phase 3 must grow a recipe for every new archetype name above before those seats can be sat. The original six archetype sets keep the names phase 3 already lists. That recipe work is a later change to `docs/plans/03-sit-and-video.md`, not part of this build.
