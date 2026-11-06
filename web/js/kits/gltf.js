@@ -7,7 +7,15 @@ let manifestPromise;
 function manifest() {
   if (!manifestPromise) {
     manifestPromise = fetch("/assets/manifest.json")
-      .then((response) => (response.ok ? response.json() : { kits: [], landmarks: [] }))
+      .then(async (response) => {
+        if (!response.ok) return { kits: [], landmarks: [] };
+        const text = await response.text();
+        const stripped = text
+          .split("\n")
+          .map((line) => line.replace(/\/\/.*$/, ""))
+          .join("\n");
+        return JSON.parse(stripped);
+      })
       .catch(() => ({ kits: [], landmarks: [] }));
   }
   return manifestPromise;
@@ -23,7 +31,7 @@ export async function loadCatalogGltf(kind, name) {
   const data = await manifest();
   const names = kind === "landmarks" ? data.landmarks : data.kits;
   if (!names.includes(name)) return null;
-  return loadOptionalGltf(`/assets/${kind}/${name}.glb?v=3`);
+  return loadOptionalGltf(`/assets/${kind}/${name}.glb?v=4`);
 }
 
 function loadOptionalGltf(url) {
