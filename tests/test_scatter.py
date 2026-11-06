@@ -43,6 +43,34 @@ def test_bog_is_carnivorous_and_valley_is_not():
     assert CARNIVOROUS_KITS and set(CARNIVOROUS_KITS).isdisjoint(block["kit"] for block in valley)
 
 
+def test_native_pieces_stay_in_one_biome():
+    homes = {
+        "monkey": (200, 1500, "hanging_vines"),
+        "water_puddle": (0, None, "river"),
+        "mud_patch": (400, -700, "carnivorous_bog"),
+        "tree_dead": (700, -1550, "cathedral_trees"),
+        "mushroom_white": (-1200, -1550, "strange_fauna"),
+    }
+    from forest_server.world.biomes import river_z
+
+    river_point = (0, river_z(0))
+    for kit, (x, z, biome) in homes.items():
+        if z is None:
+            x, z = river_point
+        blocks = _chunk(x, z)
+        assert any(block["kit"] == kit for block in blocks), kit
+        assert all(biome_at(block["x"], block["z"]) == biome for block in blocks if block["kit"] == kit)
+    moss = _chunk(-1100, 200)
+    moss_kits = {block["kit"] for block in moss}
+    assert "monkey" not in moss_kits
+    assert "water_puddle" not in moss_kits
+    assert "mud_patch" not in moss_kits
+    assert "tree_dead" not in moss_kits
+    assert "mushroom_white" not in moss_kits
+    assert "rabbit" in moss_kits
+    assert "flower_pink" in moss_kits
+
+
 def test_landmark_recipes():
     great = landmarks_in_chunk(54, 50)
     sheets = [block for mark in great for block in mark["blocks"] if block["kit"] == "waterfall_sheet"]

@@ -81,6 +81,8 @@ AIRY_KITS = (
     "rainbow_card",
     "glass_leaf",
     "beetle_lamp",
+    "songbird",
+    "butterfly",
 )
 
 CARNIVOROUS_KITS = ("pitcher", "sundew", "snap_maw", "vine_noose", "acid_cup")

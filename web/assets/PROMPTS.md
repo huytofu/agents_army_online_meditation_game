@@ -14,4 +14,9 @@ Kits: pitcher, sundew, snap_maw, acid_cup, vine_noose, spiral_tree, blossom_tree
 
 Landmarks: great_fall, cathedral_heart, spore_well, bloom_ridge, pitcher_throne, lantern_monarch, mirror_pan, heron_bend, vine_gate, amber_circle, fern_nave, sundew_jewel.
 
+Common pieces added after that set, also TripoSR, same triangle cap:
+
+- Neutral ground, moss and a few mild biomes: flower_pink, flower_blue, flower_gold, flower_white, mushroom_brown, mushroom_gold, grass_patch, dirt_patch, fallen_leaves, rabbit, worm, songbird, butterfly, tree_tall, tree_yellow, tree_branched, tree_broad.
+- One biome only: monkey in hanging vines, water_puddle in the river, mud_patch in the carnivorous bog, tree_dead in the cathedral, mushroom_white in strange fauna.
+
 Prompts are the sentences in `docs/plans/02-forest-catalog.md` under Task 3.

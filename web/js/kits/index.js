@@ -2,6 +2,7 @@ import * as THREE from "three";
 
 import { animalParts } from "./animals.js";
 import { carnivoreParts } from "./carnivores.js";
+import { commonParts } from "./commons.js";
 import { plantParts } from "./plants.js";
 import { mergeParts } from "./shape.js";
 import { terrainParts } from "./terrain.js";
@@ -9,7 +10,13 @@ import { terrainParts } from "./terrain.js";
 const cache = new Map();
 
 export function kitParts(name) {
-  return plantParts(name) || carnivoreParts(name) || animalParts(name) || terrainParts(name);
+  return (
+    plantParts(name) ||
+    carnivoreParts(name) ||
+    animalParts(name) ||
+    terrainParts(name) ||
+    commonParts(name)
+  );
 }
 
 export function kitGeometry(name) {

@@ -16,12 +16,30 @@ SCATTER = {
         ("mushroom", 14, 1.0),
         ("dead_log", 6, 1.0),
         ("cushion_moss", 10, 1.0),
+        ("flower_pink", 8, 1.0),
+        ("flower_white", 6, 1.0),
+        ("mushroom_brown", 6, 1.0),
+        ("grass_patch", 10, 1.0),
+        ("dirt_patch", 5, 1.0),
+        ("fallen_leaves", 8, 1.0),
+        ("rabbit", 3, 1.0),
+        ("worm", 4, 1.0),
+        ("songbird", 2, 1.0),
+        ("butterfly", 4, 1.0),
+        ("tree_tall", 1, 1.0),
+        ("tree_branched", 2, 1.0),
+        ("tree_broad", 1, 1.0),
     ),
     "cathedral_trees": (
         ("tree", 10, (1.6, 2.4)),
         ("fern", 12, 1.0),
         ("vine_strand", 8, 1.0),
         ("boulder", 4, 1.0),
+        ("fallen_leaves", 8, 1.0),
+        ("mushroom_brown", 4, 1.0),
+        ("tree_dead", 3, 1.0),
+        ("tree_tall", 2, (1.4, 1.8)),
+        ("songbird", 1, 1.0),
     ),
     "river": (
         ("reed", 22, 1.0),
@@ -29,6 +47,7 @@ SCATTER = {
         ("lily_pad", 8, 1.0),
         ("dragonfly", 4, 1.0),
         ("heron", 1, 1.0),
+        ("water_puddle", 6, 1.0),
     ),
     "waterfall_gorge": (
         ("cliff_wall", 14, 1.0),
@@ -42,6 +61,13 @@ SCATTER = {
         ("seed_head", 8, 1.0),
         ("kite_bird", 3, 1.0),
         ("moss_mound", 6, 1.0),
+        ("flower_blue", 8, 1.0),
+        ("flower_gold", 8, 1.0),
+        ("grass_patch", 6, 1.0),
+        ("rabbit", 2, 1.0),
+        ("butterfly", 5, 1.0),
+        ("songbird", 2, 1.0),
+        ("tree_yellow", 3, 1.0),
     ),
     "carnivorous_bog": (
         ("pitcher", 16, 1.0),
@@ -50,6 +76,7 @@ SCATTER = {
         ("vine_noose", 6, 1.0),
         ("acid_cup", 6, 1.0),
         ("bone_rib", 4, 1.0),
+        ("mud_patch", 8, 1.0),
     ),
     "strange_fauna": (
         ("spiral_tree", 8, 1.0),
@@ -57,6 +84,7 @@ SCATTER = {
         ("glow_moth", 8, 1.0),
         ("lantern_frog", 6, 1.0),
         ("beetle_lamp", 6, 1.0),
+        ("mushroom_white", 6, 1.0),
     ),
     "lantern_orchard": (
         ("blossom_tree", 8, 1.0),
@@ -64,12 +92,19 @@ SCATTER = {
         ("beetle_lamp", 8, 1.0),
         ("glow_moth", 10, 1.0),
         ("seed_head", 6, 1.0),
+        ("butterfly", 6, 1.0),
+        ("flower_gold", 4, 1.0),
     ),
     "fern_sea": (
         ("fern", 40, 1.0),
         ("fiddlehead", 16, 1.0),
         ("staghorn", 10, 1.0),
         ("tree", 2, 0.6),
+        ("flower_pink", 6, 1.0),
+        ("mushroom_gold", 5, 1.0),
+        ("fallen_leaves", 6, 1.0),
+        ("rabbit", 2, 1.0),
+        ("tree_branched", 2, 1.0),
     ),
     "hanging_vines": (
         ("vine_strand", 18, 1.0),
@@ -77,6 +112,7 @@ SCATTER = {
         ("blossom_tree", 4, 1.0),
         ("loris", 5, 1.0),
         ("cliff_wall", 4, 1.0),
+        ("monkey", 4, 1.0),
     ),
     "amber_herd": (
         ("seed_head", 16, 1.0),
@@ -84,6 +120,12 @@ SCATTER = {
         ("kite_bird", 4, 1.0),
         ("wildflower", 10, 1.0),
         ("boulder", 4, 1.0),
+        ("grass_patch", 6, 1.0),
+        ("dirt_patch", 4, 1.0),
+        ("rabbit", 2, 1.0),
+        ("worm", 3, 1.0),
+        ("songbird", 2, 1.0),
+        ("tree_yellow", 2, 1.0),
     ),
     "salt_mirror": (
         ("salt_crust", 16, 1.0),
@@ -95,6 +137,7 @@ SCATTER = {
 }
 
 HANGING = {"vine_strand", "vine_noose", "epiphyte"}
+FLOATING = {"songbird", "butterfly"}
 
 MOTION = {
     "fern": ("sway", 0.07, 5.0),
@@ -121,6 +164,15 @@ MOTION = {
     "beetle_lamp": ("bob", 0.25, 6.0),
     "mist_card": ("bob", 0.25, 6.0),
     "pitcher": ("sway", 0.03, 9.0),
+    "flower_pink": ("sway", 0.08, 4.5),
+    "flower_blue": ("sway", 0.08, 5.0),
+    "flower_gold": ("sway", 0.08, 4.2),
+    "flower_white": ("sway", 0.06, 5.5),
+    "rabbit": ("hop", 0.2, 3.5),
+    "worm": ("bob", 0.04, 2.5),
+    "monkey": ("bob", 0.12, 4.0),
+    "songbird": ("drift", 1.4, 8.0),
+    "butterfly": ("path_circle", 0.8, 6.0),
 }
 
 
@@ -186,7 +238,12 @@ def scatter_for_chunk(cx: int, cz: int) -> list[dict]:
                         scale = float(scale_spec)
                     rot_y = rng() * math.tau
                     variant = int(rng() * 3) % 3
-                    y_lift = 2.0 + rng() * 6.0 if kit in HANGING else 0.0
+                    if kit in HANGING:
+                        y_lift = 2.0 + rng() * 6.0
+                    elif kit in FLOATING:
+                        y_lift = 1.6 + rng() * 2.4
+                    else:
+                        y_lift = 0.0
                     blocks.append(_block(kit, x, z, rot_y, scale, y_lift, variant))
                     break
     return blocks
