@@ -16,7 +16,13 @@
   <body>
     <canvas id="view"></canvas>
     <div id="enter">Click to walk into the forest</div>
-    <p id="hint" class="fade">WASD move · mouse look · V view</p>
+    <p id="hint" class="fade">WASD move · mouse look · V view · F sit</p>
+    <section id="youtube" hidden>
+      <div class="youtube-frame"></div>
+      <label>Video <input type="text" maxlength="11" autocomplete="off" spellcheck="false" /></label>
+      <button type="button" data-play>Play</button>
+      <button type="button" data-stop>Stop</button>
+    </section>
     <section id="minimap" aria-label="Your place in the forest">
       <canvas id="minimap-view" width="640" height="640"></canvas>
       <div id="minimap-key"></div>

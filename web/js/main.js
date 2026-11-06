@@ -2,10 +2,12 @@ import * as THREE from "three";
 
 import { createAvatar } from "./avatar.js";
 import { createChunkWorld } from "./chunks.js";
-import { attachControls, consume } from "./controls.js";
+import { attachControls, consume, onEnter, setSeated } from "./controls.js";
+import { createDiorama } from "./diorama.js";
 import { groundHeight } from "./ground.js";
 import { biomeAt, loadMeta, paletteOf } from "./meta.js";
 import { createMinimap } from "./minimap.js";
+import { createYoutubePanel } from "./youtube.js";
 
 const MAX_SPEED = 3.2;
 const EYE_HEIGHT = 1.55;
@@ -15,6 +17,10 @@ const CHEST_HEIGHT = 1.15;
 const SPAWN_X = -24;
 const SPAWN_Z = 0;
 const WALK_CYCLE_SPEED = 0.15;
+const SIT_RANGE = 2.5;
+const TARGET_ACQUIRE = (10 * Math.PI) / 180;
+const TARGET_HOLD = (18 * Math.PI) / 180;
+const SEAT_PITCH = (-4 * Math.PI) / 180;
 
 const canvas = document.querySelector("#view");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -42,6 +48,7 @@ let yaw = 0;
 let pitch = 0;
 let view = "third";
 let walkPhase = 0;
+let avatarSeated = false;
 let walkLimit = 1996;
 let meta = null;
 let world = null;
@@ -54,8 +61,34 @@ let fromSun = new THREE.Color(0xffe0b0);
 let toSun = fromSun.clone();
 let fromDensity = 0.018;
 let toDensity = 0.018;
+let token = localStorage.getItem("forest_token");
+let sitting = false;
+let seat = null;
+let target = null;
+let diorama = null;
+let sitBlend = 1;
+let sitFrom = new THREE.Vector3();
+let poseClock = 0;
+let showVideo = 0;
+
+const ring = new THREE.Mesh(
+  new THREE.RingGeometry(0.55, 0.72, 28),
+  new THREE.MeshBasicMaterial({ color: 0xf4f1ea, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }),
+);
+ring.rotation.x = -Math.PI / 2;
+ring.visible = false;
+scene.add(ring);
+
+const youtube = createYoutubePanel(async (videoId) => {
+  if (!token) return false;
+  const body = await postJson("/api/session/youtube", { token, video_id: videoId });
+  return Boolean(body.ok);
+});
 
 attachControls(canvas);
+onEnter(() => {
+  void resumeSession();
+});
 window.addEventListener("resize", resize);
 loadMeta().then((payload) => {
   meta = payload;
@@ -74,6 +107,10 @@ loadMeta().then((payload) => {
   scene.background.copy(fromFog);
   scene.fog.density = fromDensity;
   world.update(x, z);
+  if (sitting && seat) {
+    world.markClaimed(seat.spot_id, true);
+    world.setVeil({ x, z, radius: 25, keepX: x, keepZ: z });
+  }
   minimap = createMinimap(meta);
   minimap.update(x, z, yaw);
 });
@@ -93,8 +130,9 @@ function resize() {
 
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
-  if (document.pointerLockElement === canvas) {
-    const input = consume();
+  const input = consume();
+  if (input.sitPressed) void pressSit();
+  if (!sitting && document.pointerLockElement === canvas) {
     yaw = input.yaw;
     pitch = input.pitch;
     view = input.view;
@@ -114,16 +152,31 @@ function frame() {
     } else {
       avatar.setWalkPhase(0);
     }
+    poseClock += dt;
+    if (token && poseClock >= 2) {
+      poseClock = 0;
+      void postPose();
+    }
+  }
+  if (showVideo > 0) {
+    showVideo = Math.max(0, showVideo - dt);
+    if (showVideo === 0 && sitting) youtube.show();
   }
   if (meta) settleLight(dt);
   if (world) {
     world.update(x, z);
     world.animate(clock.elapsedTime);
+    if (!sitting) aimRing();
   }
+  if (diorama) diorama.update(performance.now() / 1000);
   avatar.object.position.set(x, y, z);
   avatar.object.rotation.y = yaw;
+  if (sitting !== avatarSeated) {
+    avatarSeated = sitting;
+    avatar.setSeated(sitting);
+  }
   if (minimap) minimap.update(x, z, yaw);
-  placeCamera();
+  placeCamera(dt);
   renderer.render(scene, camera);
 }
 
@@ -154,7 +207,26 @@ function settleLight(dt) {
   scene.fog.density = baseDensity + (border ? 0.01 : 0);
 }
 
-function placeCamera() {
+function placeCamera(dt) {
+  if (sitting) {
+    const seatedYaw = yaw + ((1.5 * Math.PI) / 180) * Math.sin(clock.elapsedTime / 12);
+    const eye = new THREE.Vector3(x, y + 1.15, z);
+    const look = new THREE.Vector3(
+      x + Math.sin(seatedYaw) * Math.cos(SEAT_PITCH),
+      y + 1.15 + Math.sin(SEAT_PITCH),
+      z + Math.cos(seatedYaw) * Math.cos(SEAT_PITCH),
+    );
+    avatar.object.visible = false;
+    if (sitBlend < 1) {
+      sitBlend = Math.min(1, sitBlend + dt / 0.8);
+      camera.position.lerpVectors(sitFrom, eye, sitBlend);
+      camera.lookAt(look);
+      return;
+    }
+    camera.position.copy(eye);
+    camera.lookAt(look);
+    return;
+  }
   if (view === "first") {
     avatar.object.visible = false;
     camera.position.set(x, y + EYE_HEIGHT, z);
@@ -176,4 +248,133 @@ function placeCamera() {
     y + CHEST_HEIGHT + Math.sin(pitch),
     z + Math.cos(yaw) * Math.cos(pitch),
   );
+}
+
+function lookAtSpot(spot) {
+  const dx = spot.x - x;
+  const dz = spot.z - z;
+  const dist = Math.hypot(dx, dz);
+  const facing = dist === 0 ? 1 : (dx * Math.sin(yaw) + dz * Math.cos(yaw)) / dist;
+  return { dist, angle: Math.acos(Math.min(1, Math.max(-1, facing))) };
+}
+
+function aimRing() {
+  const spots = world.spots().filter((spot) => !spot.claimed);
+  if (target) {
+    const still = spots.find((spot) => spot.id === target.id);
+    if (!still) target = null;
+    else {
+      const glance = lookAtSpot(still);
+      target = glance.dist <= 14 && glance.angle <= TARGET_HOLD ? still : null;
+    }
+  }
+  if (!target) {
+    let best = null;
+    let bestDist = Infinity;
+    for (const spot of spots) {
+      const glance = lookAtSpot(spot);
+      if (glance.dist <= 12 && glance.angle <= TARGET_ACQUIRE && glance.dist < bestDist) {
+        best = spot;
+        bestDist = glance.dist;
+      }
+    }
+    target = best;
+  }
+  ring.visible = Boolean(target);
+  if (target) ring.position.set(target.x, target.y + 0.08, target.z);
+}
+
+async function postJson(url, body) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) return { ok: false, reason: "missing" };
+  return response.json();
+}
+
+async function postPose() {
+  if (!token || sitting) return;
+  await postJson("/api/pose", { token, x, y, z, yaw, pitch });
+}
+
+async function resumeSession() {
+  const opened = await postJson("/api/session", { token });
+  if (!opened.token) return;
+  token = opened.token;
+  localStorage.setItem("forest_token", token);
+  avatar.setColor(opened.color);
+  youtube.setDraft(opened.youtube_video_id);
+  if (opened.pose?.mode === "sit" && opened.pose.spot_id) {
+    await beginSit(opened.pose, true);
+  }
+}
+
+async function pressSit() {
+  if (sitting) {
+    await standUp();
+    return;
+  }
+  if (!token || !target || lookAtSpot(target).dist > SIT_RANGE) return;
+  await postPose();
+  const result = await postJson("/api/sit", { token, spot_id: target.id });
+  if (!result.ok) {
+    if (result.reason === "taken" && world) world.markClaimed(target.id, true);
+    target = null;
+    ring.visible = false;
+    return;
+  }
+  await beginSit(result.pose, false);
+}
+
+async function beginSit(pose, resumed) {
+  sitting = true;
+  seat = pose;
+  x = pose.x;
+  y = pose.y;
+  z = pose.z;
+  yaw = pose.yaw;
+  setSeated(true);
+  ring.visible = false;
+  target = null;
+  if (world) {
+    world.markClaimed(pose.spot_id, true);
+    world.setVeil({ x, z, radius: 25, keepX: x, keepZ: z });
+    world.update(x, z);
+  }
+  sitFrom.copy(camera.position);
+  sitBlend = resumed ? 1 : 0;
+  const recipe = await fetch(`/api/world/spots/${pose.spot_id}/recipe`);
+  if (recipe.ok) {
+    const body = await recipe.json();
+    if (diorama) diorama.dispose();
+    diorama = await createDiorama(
+      { id: body.spot_id, x: pose.x, z: pose.z, yaw: body.yaw },
+      body.blocks,
+    );
+    scene.add(diorama.object);
+    diorama.update(performance.now() / 1000);
+  }
+  showVideo = 1.2;
+}
+
+async function standUp() {
+  if (!token) return;
+  const result = await postJson("/api/stand", { token });
+  if (diorama) diorama.dispose();
+  diorama = null;
+  youtube.hide();
+  showVideo = 0;
+  sitting = false;
+  if (world && seat) world.markClaimed(seat.spot_id, false);
+  seat = null;
+  if (world) world.setVeil(null);
+  setSeated(false);
+  if (result.ok) {
+    x = result.pose.x;
+    y = result.pose.y;
+    z = result.pose.z;
+  }
+  y = groundHeight(x, z);
 }

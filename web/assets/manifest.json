@@ -2,23 +2,23 @@
   "kits": [
     "acid_cup",
     "beetle_lamp",
-    "blossom_tree",
+    // "blossom_tree", // glb file needs revision
     "brine_skipper",
     "butterfly",
     "dirt_patch",
     "dragonfly",
-    "epiphyte",
+    // "epiphyte", // glb file needs revision
     "fallen_leaves",
-    "fiddlehead",
-    "flower_blue",
-    "flower_gold",
-    "flower_pink",
-    "flower_white",
-    "glass_leaf",
+    // "fiddlehead", // glb file needs revision
+    // "flower_blue", // glb file needs revision
+    // "flower_gold", // glb file needs revision
+    // "flower_pink", // glb file needs revision
+    // "flower_white", // glb file needs revision
+    // "glass_leaf", // glb file needs revision
     "glow_moth",
     "grass_patch",
-    "grazer",
-    "heron",
+    // "grazer", // glb file needs revision
+    // "heron", // glb file needs revision
     "kite_bird",
     "lantern_frog",
     "loris",
@@ -27,19 +27,19 @@
     "mushroom_brown",
     "mushroom_gold",
     "mushroom_white",
-    "pitcher",
+    // "pitcher", // glb file needs revision
     "rabbit",
-    "snap_maw",
+    // "snap_maw", // glb file needs revision
     "songbird",
-    "spiral_tree",
+    // "spiral_tree", // glb file needs revision
     "staghorn",
-    "sundew",
+    // "sundew", // glb file needs revision
     "tree_branched",
     "tree_broad",
-    "tree_dead",
+    // "tree_dead", // glb file needs revision
     "tree_tall",
     "tree_yellow",
-    "vine_noose",
+    // "vine_noose", // glb file needs revision
     "water_puddle",
     "worm"
   ],
