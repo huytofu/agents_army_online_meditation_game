@@ -163,14 +163,89 @@ function buildGround(meta, cx, cz) {
   return mesh;
 }
 
+function bakedGeometry(root) {
+  root.updateMatrixWorld(true);
+  const geometries = [];
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const geometry = obj.geometry.clone();
+    geometry.applyMatrix4(obj.matrixWorld);
+    geometries.push(geometry);
+  });
+  if (!geometries.length) return null;
+  if (geometries.length === 1) return geometries[0];
+  return mergeBufferGeometries(geometries);
+}
+
+function mergeBufferGeometries(geometries) {
+  let vertices = 0;
+  let indexes = 0;
+  for (const geometry of geometries) {
+    vertices += geometry.attributes.position.count;
+    indexes += geometry.index ? geometry.index.count : geometry.attributes.position.count;
+  }
+  const positions = new Float32Array(vertices * 3);
+  const colors = new Float32Array(vertices * 3);
+  const indices = new Uint32Array(indexes);
+  let vertexBase = 0;
+  let indexBase = 0;
+  for (const geometry of geometries) {
+    const position = geometry.attributes.position;
+    const color = geometry.getAttribute("color");
+    for (let i = 0; i < position.count; i += 1) {
+      positions[(vertexBase + i) * 3] = position.getX(i);
+      positions[(vertexBase + i) * 3 + 1] = position.getY(i);
+      positions[(vertexBase + i) * 3 + 2] = position.getZ(i);
+      if (color) {
+        colors[(vertexBase + i) * 3] = color.getX(i);
+        colors[(vertexBase + i) * 3 + 1] = color.getY(i);
+        colors[(vertexBase + i) * 3 + 2] = color.getZ(i);
+      } else {
+        colors[(vertexBase + i) * 3] = 0.75;
+        colors[(vertexBase + i) * 3 + 1] = 0.7;
+        colors[(vertexBase + i) * 3 + 2] = 0.6;
+      }
+    }
+    if (geometry.index) {
+      for (let i = 0; i < geometry.index.count; i += 1) {
+        indices[indexBase + i] = geometry.index.getX(i) + vertexBase;
+      }
+      indexBase += geometry.index.count;
+    } else {
+      for (let i = 0; i < position.count; i += 1) indices[indexBase + i] = vertexBase + i;
+      indexBase += position.count;
+    }
+    vertexBase += position.count;
+  }
+  const merged = new THREE.BufferGeometry();
+  merged.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  merged.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  merged.setIndex(new THREE.BufferAttribute(indices, 1));
+  merged.computeVertexNormals();
+  return merged;
+}
+
+function litMaterial(geometry, sourceMaterial) {
+  const hasColor = Boolean(geometry.getAttribute("color"));
+  return new THREE.MeshBasicMaterial({
+    map: sourceMaterial?.map || null,
+    vertexColors: hasColor && !sourceMaterial?.map,
+    color: 0xffffff,
+    side: THREE.DoubleSide,
+  });
+}
+
 async function sourceFor(kit) {
   const gltf = await loadCatalogGltf("kits", kit);
   if (gltf) {
-    let found = null;
-    gltf.scene.traverse((obj) => {
-      if (obj.isMesh && !found) found = obj;
-    });
-    if (found) return { geometry: found.geometry, material: found.material };
+    const geometry = bakedGeometry(gltf.scene);
+    if (geometry) {
+      let sourceMaterial = null;
+      gltf.scene.traverse((obj) => {
+        if (obj.isMesh && !sourceMaterial) sourceMaterial = obj.material;
+      });
+      return { geometry, material: litMaterial(geometry, sourceMaterial) };
+    }
   }
   return {
     geometry: kitGeometry(kit),

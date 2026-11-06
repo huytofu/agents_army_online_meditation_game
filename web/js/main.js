@@ -4,6 +4,7 @@ import { createAvatar } from "./avatar.js";
 import { createChunkWorld } from "./chunks.js";
 import { attachControls, consume } from "./controls.js";
 import { groundHeight } from "./ground.js";
+import { loadCatalogGltf } from "./kits/gltf.js";
 import { biomeAt, loadMeta, paletteOf } from "./meta.js";
 
 const MAX_SPEED = 3.2;
@@ -72,6 +73,7 @@ loadMeta().then((payload) => {
   scene.background.copy(fromFog);
   scene.fog.density = fromDensity;
   world.update(x, z);
+  placeCatalogApproach(scene);
 });
 
 const clock = new THREE.Clock();
@@ -147,6 +149,78 @@ function settleLight(dt) {
     return biomeAt(meta, x + offset, z) !== biome || biomeAt(meta, x, z + offset) !== biome;
   });
   scene.fog.density = baseDensity + (border ? 0.01 : 0);
+}
+
+const APPROACH_KITS = [
+  ["pitcher", 1],
+  ["sundew", 2.2],
+  ["snap_maw", 1.6],
+  ["acid_cup", 3],
+  ["vine_noose", 1],
+  ["spiral_tree", 1],
+  ["blossom_tree", 0.55],
+  ["glass_leaf", 2],
+  ["staghorn", 1],
+  ["fiddlehead", 1.4],
+  ["epiphyte", 1.6],
+  ["heron", 1],
+  ["grazer", 1],
+  ["loris", 2],
+  ["dragonfly", 2],
+  ["kite_bird", 2.2],
+  ["glow_moth", 2.2],
+  ["lantern_frog", 2.4],
+  ["beetle_lamp", 2.4],
+  ["brine_skipper", 4],
+];
+
+async function placeCatalogApproach(root) {
+  const group = new THREE.Group();
+  root.add(group);
+  const kits = await Promise.all(APPROACH_KITS.map(async ([name, scale], index) => {
+    const gltf = await loadCatalogGltf("kits", name);
+    return { name, scale, gltf, index };
+  }));
+  for (const item of kits) {
+    if (!item.gltf) continue;
+    const side = item.index < 10 ? -1 : 1;
+    const slot = item.index % 10;
+    const object = item.gltf.scene.clone(true);
+    prepareLit(object);
+    const px = SPAWN_X + side * (5 + slot * 2.1);
+    const pz = 9 + (slot % 2) * 2.4;
+    object.position.set(px, groundHeight(px, pz), pz);
+    object.scale.setScalar(item.scale);
+    group.add(object);
+  }
+  const landmarks = [
+    ["pitcher_throne", -34, 16, 1],
+    ["great_fall", -14, 26, 0.85],
+    ["spore_well", -36, 28, 1.2],
+  ];
+  for (const [name, px, pz, scale] of landmarks) {
+    const gltf = await loadCatalogGltf("landmarks", name);
+    if (!gltf) continue;
+    const object = gltf.scene.clone(true);
+    prepareLit(object);
+    object.position.set(px, groundHeight(px, pz), pz);
+    object.scale.setScalar(scale);
+    group.add(object);
+  }
+}
+
+function prepareLit(root) {
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const source = obj.material;
+    const hasColor = Boolean(obj.geometry.getAttribute("color"));
+    obj.material = new THREE.MeshBasicMaterial({
+      map: source?.map || null,
+      vertexColors: hasColor && !source?.map,
+      color: 0xffffff,
+      side: THREE.DoubleSide,
+    });
+  });
 }
 
 function placeCamera() {
