@@ -9,7 +9,7 @@ todos:
     content: Seed Postgres once and serve meta plus chunk JSON
     status: pending
   - id: p2-meshes
-    content: Offline WorldClaw-style meshes for unusual kits and landmarks, with procedural fallback
+    content: Offline TripoSR meshes for unusual kits and landmarks, procedural fallback, no Hunyuan output in the repo
     status: pending
   - id: p2-stream
     content: 3x3 chunk client, kits, committed glTFs, cushions, river, biome light
@@ -25,7 +25,7 @@ isProject: false
 
 **Goal:** A person can walk out of the moss spawn, cross a river, and enter a different biome without a reload. Seat cushions appear in scattered clearings of a few hundred seats, and as single cushions in quiet places. They do not carpet the map.
 
-**Architecture:** Python is the only forest generator for layout. It decides biomes, the river, seats, scatter points, and landmark anchors, and serves them as JSON. An offline 3D model, used the way [Hunyuan3D-WorldClaw](https://github.com/Tencent-Hunyuan/Hunyuan3D-WorldClaw) does, sculpts the unusual kit and landmark meshes before the game runs. The browser renders the JSON plus those committed files. It does not keep a second copy of the biome map, and it does not call a model. Spots are inserted once into this game's Postgres.
+**Architecture:** Python is the only forest generator for layout. It decides biomes, the river, seats, scatter points, and landmark anchors, and serves them as JSON. Offline image-to-3D sculpts the unusual kit and landmark meshes before the game runs. The shipped generator is [TripoSR](https://github.com/VAST-AI-Research/TripoSR). The browser renders the JSON plus those committed files. It does not keep a second copy of the biome map, and it does not call a model. Spots are inserted once into this game's Postgres.
 
 **Tech Stack:** The phase 1 server and Three.js client, plus committed glTF for the meshes named below. Still no websocket. The play server never loads PyTorch, Blender, or a GPU model.
 
@@ -289,17 +289,21 @@ Palettes are fog, sun, and the colors the kits actually use:
 
 ## Task 3: Offline meshes for biomes and landmarks
 
-Use the WorldClaw pattern, not a live model. [Hunyuan3D-WorldClaw](https://github.com/Tencent-Hunyuan/Hunyuan3D-WorldClaw) (paper [arXiv:2608.05248](https://arxiv.org/abs/2608.05248)) plans a scene from one text prompt, builds a terrain, then reconstructs editable textured meshes and places them on that terrain. This phase keeps the terrain, seats, and placement in Python. The model only sculpts meshes.
+Use an offline image-to-3D model, not a live one. [Hunyuan3D-WorldClaw](https://github.com/Tencent-Hunyuan/Hunyuan3D-WorldClaw) (paper [arXiv:2608.05248](https://arxiv.org/abs/2608.05248)) is the pattern: one text prompt becomes editable meshes placed on a terrain this phase already owns. That repository currently has the paper and no source, weights, or license. Do not clone it and expect it to run. Do not vendor an unofficial reimplementation.
 
-The public WorldClaw repository currently contains the paper announcement and assets. It does not contain source, weights, an install command, or a license. Do not block this phase on cloning it and expecting it to run. Do not vendor an unofficial reimplementation.
+**Ship TripoSR.** [TripoSR](https://github.com/VAST-AI-Research/TripoSR) is the generator whose meshes go into this repo. It is a single-image feed-forward reconstruction model from Tripo AI and Stability AI. The code and the pretrained weights are MIT (copyright 2024 Tripo AI and Stability AI). There is no territory carve-out and no monthly-user cap. Inference is about 6 GB of VRAM, and the project documents a CPU fallback. On an A100 the paper's timing is under half a second per image, which is enough to build this whole catalog. The game's lighting is Lambert and fog, not PBR, so TripoSR's vertex colors or one baked albedo are the right output.
 
-Generator order:
+[Hunyuan3D-2](https://github.com/Tencent-Hunyuan/Hunyuan3D-2) makes sharper textured meshes, and its paint stage is the quality step WorldClaw uses. It is the wrong default here. Shape generation is about 6 GB, shape plus texture about 16 GB, and the Tencent Hunyuan 3D 2.0 Community License does not cover the European Union, the United Kingdom, or South Korea. That license also says not to display the outputs outside that territory. This forest is a page anyone can open, so a Hunyuan mesh must not be the committed file. You may render a Hunyuan preview beside a TripoSR mesh and then discard the Hunyuan file. Do not commit both for the same name.
 
-1. If Tencent has published WorldClaw code and a license that allows committing the outputs in this repo, use that pipeline for the prompts below.
-2. Otherwise use a released open Hunyuan3D image-to-3D model. The WorldClaw paper refines object meshes with Hunyuan3D. The public weights for that step are [Hunyuan3D-2](https://github.com/Tencent-Hunyuan/Hunyuan3D-2), under the Tencent Hunyuan 3D 2.0 Community License. That license does not cover the European Union, the United Kingdom, or South Korea, and distributing the weights has notice rules. Read the license before committing a mesh. Tencent's text says outputs by themselves are not model derivatives, and that Tencent claims no rights in outputs you generate. If the license still forbids committing the file, skip the file and keep the procedural builder.
-3. If no licensed generator is available, ship the procedural builders and write the reason in `web/assets/PROMPTS.md`. The walk must still work.
+If a TripoSR mesh fails the checks below, keep the procedural builder for that one name and say so in `web/assets/PROMPTS.md`. Thin parts are the likely failures: heron legs, the vine noose, dragonfly wings, glass leaves. A collapsed silhouette is worse than the procedural shape.
 
-How to run it, once, on a machine with a GPU. Not in `pytest`, not in uvicorn, not in the browser:
+How to run TripoSR, once, on a machine with a GPU. Not in `pytest`, not in uvicorn, not in the browser:
+
+```bash
+python run.py path/to/object.png --output-dir output/ --bake-texture --texture-resolution 1024
+```
+
+The script writes an OBJ. Convert it to one GLB before commit. Decimate until the triangle budget holds. Copy TripoSR's MIT `LICENSE` to `web/assets/LICENSE-TRIPOSR.txt`.
 
 - One prompt, one object. The prompt may not ask for a forest map, a river, or seats. Those already exist.
 - Make a single object on a plain background, then run image-to-3D. Export one glTF binary, Y-up, base on `y = 0`, 1 unit = 1 meter, at the unscaled size named in the kit and landmark sections. The chunk `scale` field multiplies that file.
@@ -409,4 +413,4 @@ Commit once: the walkable forest is a 4000 m catalog of places, not one field of
 
 ## What this phase does not do
 
-Do not build seated recipes, claims, YouTube, or other players. Do not call WorldClaw, Hunyuan3D, or any other generator from the game process or from the browser. Do not replace the ground-height terms, the seat coordinates, or the river curve with a generated terrain. Phase 3 must grow a recipe for every new archetype name above before those seats can be sat. The original six archetype sets keep the names phase 3 already lists. That recipe work is a later change to `docs/plans/03-sit-and-video.md`, not part of this build.
+Do not build seated recipes, claims, YouTube, or other players. Do not call TripoSR, WorldClaw, Hunyuan3D, or any other generator from the game process or from the browser. Do not commit a Hunyuan3D mesh. Do not replace the ground-height terms, the seat coordinates, or the river curve with a generated terrain. Phase 3 must grow a recipe for every new archetype name above before those seats can be sat. The original six archetype sets keep the names phase 3 already lists. That recipe work is a later change to `docs/plans/03-sit-and-video.md`, not part of this build.
