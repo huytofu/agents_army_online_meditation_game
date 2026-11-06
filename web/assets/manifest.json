@@ -13,7 +13,7 @@
     // "flower_blue", // glb file needs revision
     // "flower_gold", // glb file needs revision
     // "flower_pink", // glb file needs revision
-    // "flower_white", // glb file needs revision
+    "flower_white",
     // "glass_leaf", // glb file needs revision
     "glow_moth",
     "grass_patch",
