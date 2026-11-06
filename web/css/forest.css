@@ -1,0 +1,58 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #1d3328;
+  color: #efe6d4;
+  font-family: "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+#view {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+#enter {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  background: rgba(29, 51, 40, 0.38);
+  font-size: 2rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+#enter[hidden] {
+  display: none;
+}
+
+#hint {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 2rem;
+  margin: 0;
+  text-align: center;
+  font-size: 1.15rem;
+  pointer-events: none;
+  opacity: 0;
+}
+
+#hint.fade {
+  animation: hint-fade 5.8s linear forwards;
+}
+
+@keyframes hint-fade {
+  0%,
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

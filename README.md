@@ -20,3 +20,15 @@ d) No sound tied to scenery elements yet.
 
 Focus:
 a) Visuals is king! Arts and variety of scenery is the core offerings. Open-ended nature of the forest. Player customization + art + movement or activities are not as importat. Can be stick men with simple movements
+
+## Run
+
+```bash
+python -m venv .venv
+source .venv/Scripts/activate
+pip install -r requirements.txt
+docker compose up -d
+python -m uvicorn forest_server.app:app --host 127.0.0.1 --port 8765
+```
+
+On Linux, activate with `source .venv/bin/activate` instead. Open `http://127.0.0.1:8765/`.
