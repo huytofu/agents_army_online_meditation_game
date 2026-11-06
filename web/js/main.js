@@ -5,6 +5,7 @@ import { createChunkWorld } from "./chunks.js";
 import { attachControls, consume } from "./controls.js";
 import { groundHeight } from "./ground.js";
 import { biomeAt, loadMeta, paletteOf } from "./meta.js";
+import { createMinimap } from "./minimap.js";
 
 const MAX_SPEED = 3.2;
 const EYE_HEIGHT = 1.55;
@@ -44,6 +45,7 @@ let walkPhase = 0;
 let walkLimit = 1996;
 let meta = null;
 let world = null;
+let minimap = null;
 let biome = "moss_plain";
 let blend = 1;
 let fromFog = new THREE.Color(0xd5e2d2);
@@ -72,6 +74,8 @@ loadMeta().then((payload) => {
   scene.background.copy(fromFog);
   scene.fog.density = fromDensity;
   world.update(x, z);
+  minimap = createMinimap(meta);
+  minimap.update(x, z, yaw);
 });
 
 const clock = new THREE.Clock();
@@ -118,6 +122,7 @@ function frame() {
   }
   avatar.object.position.set(x, y, z);
   avatar.object.rotation.y = yaw;
+  if (minimap) minimap.update(x, z, yaw);
   placeCamera();
   renderer.render(scene, camera);
 }
