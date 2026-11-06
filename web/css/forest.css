@@ -47,6 +47,82 @@ body {
   animation: hint-fade 5.8s linear forwards;
 }
 
+#minimap {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: calc(100vw - 24px);
+  pointer-events: none;
+}
+
+#minimap-view {
+  width: min(320px, 46vw);
+  height: min(320px, 46vw);
+  border-radius: 12px;
+  background: #24352c;
+  box-shadow: 0 10px 28px rgba(20, 28, 22, 0.35);
+}
+
+#minimap-key {
+  width: min(220px, 46vw);
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(29, 51, 40, 0.78);
+  box-shadow: 0 10px 28px rgba(20, 28, 22, 0.28);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+#minimap-key strong {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+#minimap-key span {
+  display: block;
+  margin-bottom: 0.45rem;
+}
+
+#minimap-key ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#minimap-key li {
+  white-space: nowrap;
+}
+
+#minimap-key li + li {
+  margin-top: 0.12rem;
+}
+
+@media (max-width: 720px) {
+  #minimap {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  #minimap-key ul {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 52px;
+    columns: 2;
+    column-gap: 14px;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(29, 51, 40, 0.78);
+  }
+}
+
 @keyframes hint-fade {
   0%,
   86% {
