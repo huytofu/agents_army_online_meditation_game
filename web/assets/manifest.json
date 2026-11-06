@@ -1,0 +1,38 @@
+{
+  "kits": [
+    "acid_cup",
+    "beetle_lamp",
+    "blossom_tree",
+    "brine_skipper",
+    "dragonfly",
+    "epiphyte",
+    "fiddlehead",
+    "glass_leaf",
+    "glow_moth",
+    "grazer",
+    "heron",
+    "kite_bird",
+    "lantern_frog",
+    "loris",
+    "pitcher",
+    "snap_maw",
+    "spiral_tree",
+    "staghorn",
+    "sundew",
+    "vine_noose"
+  ],
+  "landmarks": [
+    "amber_circle",
+    "bloom_ridge",
+    "cathedral_heart",
+    "fern_nave",
+    "great_fall",
+    "heron_bend",
+    "lantern_monarch",
+    "mirror_pan",
+    "pitcher_throne",
+    "spore_well",
+    "sundew_jewel",
+    "vine_gate"
+  ]
+}
