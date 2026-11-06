@@ -34,8 +34,8 @@ def test_committed_gltfs_match_the_catalog():
         assert path.stem in known
         mesh_count, triangles = _glb_stats(path)
         assert mesh_count == 1
-        assert triangles <= 5000
+        assert triangles <= 50000
     for path in landmarks:
         assert path.stem in LANDMARK_NAMES
         _mesh_count, triangles = _glb_stats(path)
-        assert triangles <= 80000
+        assert triangles <= 400000

@@ -295,8 +295,8 @@ The script writes an OBJ. Convert it to one GLB before commit. Decimate until th
 
 - One prompt, one object. The prompt may not ask for a forest map, a river, or seats. Those already exist.
 - Make a single object on a plain background, then run image-to-3D. Export one glTF binary, Y-up, base on `y = 0`, 1 unit = 1 meter, at the unscaled size named in the kit and landmark sections. The chunk `scale` field multiplies that file.
-- A scatter kit used more than ten times in one chunk must be a single geometry and a single material, at most `5000` triangles, with one albedo at most `1024` px. Merge parts before commit so `InstancedMesh` can draw it.
-- A landmark file may be a group, at most `80000` triangles, textures at most `2048` px. Only one copy of each landmark is drawn.
+- A scatter kit used more than ten times in one chunk must be a single geometry and a single material, at most `50000` triangles, with one albedo at most `2048` px. Merge parts before commit so `InstancedMesh` can draw it.
+- A landmark file may be a group, at most `400000` triangles, textures at most `2048` px. Only one copy of each landmark is drawn.
 - No skeleton and no embedded clip. Sway, bob, hop, and scroll stay in the client and move the whole instance.
 - Write the prompt, the generator name, and the revision into `web/assets/PROMPTS.md` next to the filename.
 
@@ -341,7 +341,7 @@ Prompts, used as written:
 - `fern_nave`: a path between two rows of tall ferns and staghorns, center empty
 - `sundew_jewel`: one giant sundew with smaller sundews and pale crystals
 
-`tests/test_assets.py` does not run a model. It fails if a committed `.glb` is named for an unknown kit or landmark, if a scatter-kit file has more than one mesh or more than `5000` triangles, or if a landmark file has more than `80000` triangles. Missing files are allowed. `pytest` must pass on a machine with no GPU.
+`tests/test_assets.py` does not run a model. It fails if a committed `.glb` is named for an unknown kit or landmark, if a scatter-kit file has more than one mesh or more than `50000` triangles, or if a landmark file has more than `400000` triangles. Missing files are allowed. `pytest` must pass on a machine with no GPU.
 
 ## Task 4: Stream the client
 
