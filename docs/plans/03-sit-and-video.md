@@ -22,6 +22,19 @@ isProject: false
 
 **Architecture:** `GET /api/world/spots/{id}/recipe` is computed in Python from the spot id. Session HTTP routes store the walker pose, the claim, and a private video id. The browser fades nearby scatter and draws the recipe in local space.
 
+## The forest these seats belong to
+
+The walkable world is the current 4000 m square, `x` and `z` in `[-2000, 2000]`. It is not one 400 m moss field. Spawn stays `(-24, 0)` in the moss plain, and that point is not inside a seat clearing.
+
+The 4256 cushions already in Postgres are the only seats:
+
+- Thirteen round clearings on the 8 m hex lattice, a few hundred cushions each: dew camp, mushroom yard, bloom bowl, petal steps, vine loft, fall ledge, fern hollow, bog ring, herd shade, orchard glow, spore camp, nave roots, and mirror shelf.
+- Fifty-nine isolated cushions on the 220 m grid, each at least 80 m outside every clearing and 16 m off the river.
+
+A clearing cushion and an isolated cushion use the same recipe, claim, and sit rules. The archetype still comes from the spot row, which follows that spot's biome. All twelve biomes have four archetypes. The six that arrived with the wide forest are carnivorous bog, lantern orchard, fern sea, hanging vines, amber herd, and salt mirror. Their layouts are below with the original six.
+
+The corner minimap stays visible while sitting. It still marks only this player.
+
 **Tech Stack:** Phase 2 client and server. YouTube IFrame API loaded only after a sit.
 
 ## Global Constraints
@@ -38,7 +51,7 @@ const wz = seatZ - block.x * Math.sin(yaw) + block.z * Math.cos(yaw);
 const wy = groundHeight(wx, wz) + block.y;
 ```
 
-- Solid kits stay out of radius `0.8` m and out of the forward wedge `abs(atan2(x, z)) < 0.35 && hypot(x, z) < 4`. Airy kits may enter it: `mist_card`, `spore`, `glow_moth`, `waterfall_sheet`, `vine_strand`. Archetype `behind_sheet` skips this filter.
+- Solid kits stay out of radius `0.8` m and out of the forward wedge `abs(atan2(x, z)) < 0.35 && hypot(x, z) < 4`. Airy kits may enter it. That set is `forest_server.world.biomes.AIRY_KITS`: `mist_card`, `spore`, `glow_moth`, `waterfall_sheet`, `vine_strand`, `dragonfly`, `kite_bird`, `brine_skipper`, `rainbow_card`, `glass_leaf`, `beetle_lamp`, `songbird`, `butterfly`. Archetype `behind_sheet` skips this filter.
 - Motion phase is `0.17 * spot_id` seconds. Kinds: `none`, `sway`, `uv_scroll`, `drift`, `bob`, `path_circle`, `hop`.
 
 ## Files
@@ -95,8 +108,34 @@ Layouts (op, kit, count, radius or z, center or x spread, spread, scale, y, moti
 - `spiral_cathedral`: arc spiral_tree 5, r 6, scale 1.4; arc spore 10, r 3.5, center pi, bob 0.3 period 6
 - `moth_lane`: arc glow_moth 6, r 4, center 0, spread 1.2, drift 0.5 period 9; arc spiral_tree 4, r 7, center pi/2, spread 1
 - `violet_hollow`: arc spore 12, r 4, center pi, bob 0.35 period 5; front spiral_tree 1, z 4, x spread 2.5; front lantern_frog 2, z 3, x spread 2, hop amount 0.35 period 6
+- `pitcher_ring`: arc pitcher 8, r 5, center pi, spread 2.2, scale 1.2; arc sundew 8, r 3.2, center pi, spread 2; arc acid_cup 4, r 6.5, center pi, spread 1.5
+- `sundew_jewel`: arc sundew 10, r 3.5, center pi, spread 4; arc crystal_shard 6, r 6, center pi, spread 2; front bone_rib 1, z 5, scale 1
+- `maw_clearing`: arc snap_maw 6, r 4.5, center pi, spread 2; arc vine_noose 6, r 6, y 2, center pi, spread 2, sway 0.1 period 7; arc mud_patch 4, r 7, center pi, spread 1.4
+- `acid_cup_seat`: arc acid_cup 8, r 3.6, center pi, spread 2.4; arc pitcher 6, r 6, center pi, spread 2; front bone_rib 2, z 5, x spread 2
+- `glow_fruit`: arc blossom_tree 5, r 6, center pi, spread 2; arc beetle_lamp 6, r 3.2, center pi, bob 0.25 period 6; arc butterfly 4, r 4, path_circle amount 1.2 period 10
+- `glass_aisle`: arc glass_leaf 10, r 3.5, center pi, spread 2.2, bob 0.2 period 6; arc blossom_tree 4, r 7, center pi, spread 1.5
+- `moth_orchard`: arc glow_moth 8, r 3.2, path_circle amount 1.2 period 12; arc blossom_tree 5, r 7, center pi, spread 2
+- `lantern_root`: front blossom_tree 1, z 5, scale 2.2; arc flower_gold 8, r 3.5, center pi, spread 2; arc beetle_lamp 6, r 5, center pi, bob 0.2 period 6
+- `fiddle_bowl`: arc fiddlehead 12, r 3.4, center pi, spread 4, sway 0.07 period 5; arc fern 8, r 6, center pi, spread 2
+- `staghorn_nave`: arc staghorn 8, r 4, center pi, spread 2.2; arc fern 8, r 6.5, center pi, spread 2
+- `fern_tunnel`: arc fern 10, r 3.2, center pi, spread 2; arc tree 4, r 7, center pi, spread 1.6, scale 1.2; arc fiddlehead 6, r 5, center pi, spread 1.5
+- `curl_overlook`: front tree 2, z 6, x spread 3, scale 1.4; arc fern 8, r 4, center pi, spread 2; arc flower_pink 6, r 5, center pi, spread 1.6
+- `root_swing`: arc vine_strand 10, r 4, y 4, sway 0.1 period 7; arc epiphyte 6, r 5, y 3, center pi, spread 2
+- `epiphyte_balcony`: arc epiphyte 8, r 3.5, y 3, center pi, spread 2; arc vine_strand 8, r 6, y 4, sway 0.1 period 7; arc blossom_tree 3, r 8, center pi, spread 1.2
+- `loris_perch`: arc loris 4, r 3.2, y 2, center pi, bob 0.12 period 5; arc vine_strand 8, r 5, y 3; arc epiphyte 6, r 4, y 3.5, center pi, spread 1.6
+- `curtain_gap`: arc vine_strand 12, r 3.2, y 3.5, center pi, spread 4, sway 0.1 period 7; arc monkey 3, r 6, center pi, spread 1.2, bob 0.12 period 4
+- `grazer_shade`: arc grazer 4, r 6, center pi, spread 1.5, bob 0.08 period 4; arc seed_head 8, r 4, center pi, spread 2, sway 0.07 period 5; arc tree_yellow 3, r 9, center pi, spread 1.2, scale 1.1
+- `seed_ring`: arc seed_head 12, r 3.5, center pi, spread 4, sway 0.07 period 5; arc wildflower 8, r 6, center pi, spread 2
+- `dust_bowl`: arc boulder 5, r 6, center pi, spread 2; arc grass_patch 8, r 3.5, center pi, spread 2; arc dirt_patch 4, r 5, center pi, spread 1.4
+- `bird_perch`: arc kite_bird 4, r 5, y 3, drift amount 1.2 period 9; arc seed_head 8, r 4, center pi, spread 2; arc tree_yellow 3, r 8, center pi, spread 1.2
+- `crust_lip`: arc salt_crust 10, r 4, center pi, spread 2.4; arc crystal_shard 6, r 6, center pi, spread 1.5
+- `pink_pool`: front pool_disc 1, z 5, scale 4; arc salt_crust 8, r 6, center pi, spread 2; arc brine_skipper 4, r 3.2, hop amount 0.35 period 6
+- `crystal_seat`: arc crystal_shard 8, r 3.5, center pi, spread 2; arc salt_crust 6, r 6, center pi, spread 1.6; front bone_rib 2, z 5.5, x spread 2
+- `brine_hollow`: arc brine_skipper 6, r 3, hop amount 0.35 period 6; arc salt_crust 8, r 5, center pi, spread 2; arc crystal_shard 4, r 7, center pi, spread 1.4
 
-For three ridge cards at fixed z, call `front` once per z rather than inventing a new helper. Same for the nave: two `arc` calls are enough if the tests pass.
+For three ridge cards at fixed z, call `front` once per z rather than inventing a new helper. Same for the nave: two `arc` calls are enough if the tests pass. `front` does not jitter, so the `pool_ledge` sheet stays at scale `8`.
+
+The seated camera looks along local `+Z` and cannot turn. When an arrangement would otherwise sit entirely behind the sitter, add a `front` pair near `z 4.6` (or an airy kit closer in). Solids there are past the 4 m wedge, so the gaze stays open and the pieces are still inside the view.
 
 `tests/test_recipes.py`: every archetype name produces at least 8 blocks; every kit is in the phase 2 kit set; the same spot id returns equal JSON; solid blocks of every archetype except `behind_sheet` pass the wedge test; `pool_ledge` includes a `waterfall_sheet` with scale `>= 8`.
 
@@ -154,7 +193,7 @@ Create or resume the session on the first successful enter click.
 ## Done when
 
 - Recipe and claim tests pass, and phase 1–2 tests still pass.
-- Sitting at a moss seat, a gorge seat, and a strange seat shows three different moving sets of kits.
+- Sitting at a moss seat, a gorge seat, and a strange seat shows three different moving sets of kits. An isolated cushion uses the same sit path as a clearing cushion.
 - A second browser gets `taken` for that spot.
 - Refresh keeps the claim and the video id text. The video does not start by itself. Standing removes the iframe and the sound.
 

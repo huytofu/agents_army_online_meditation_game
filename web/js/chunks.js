@@ -33,6 +33,13 @@ export function createChunkWorld(scene, meta) {
   const loaded = new Map();
   let token = 0;
   let center = "";
+  let veil = null;
+
+  function hidden(item) {
+    if (!veil) return false;
+    if (Math.hypot(item.x - veil.keepX, item.z - veil.keepZ) < 0.45) return false;
+    return Math.hypot(item.x - veil.x, item.z - veil.z) < veil.radius;
+  }
 
   return {
     update(x, z) {
@@ -59,7 +66,7 @@ export function createChunkWorld(scene, meta) {
         if (loaded.has(key)) continue;
         loaded.set(key, { ready: false, dispose() {} });
         const [ix, iz] = key.split(",").map(Number);
-        buildChunk(scene, meta, ix, iz).then((chunk) => {
+        buildChunk(scene, meta, ix, iz, hidden).then((chunk) => {
           if (generation !== token && !wanted.has(key)) {
             chunk.dispose();
             return;
@@ -77,18 +84,34 @@ export function createChunkWorld(scene, meta) {
     animate(time) {
       for (const chunk of loaded.values()) chunk.animate?.(time);
     },
+    spots() {
+      const found = [];
+      for (const chunk of loaded.values()) {
+        if (chunk.spots) found.push(...chunk.spots);
+      }
+      return found;
+    },
+    markClaimed(id, claimed) {
+      for (const spot of this.spots()) {
+        if (spot.id === id) spot.claimed = claimed;
+      }
+    },
+    setVeil(next) {
+      veil = next;
+      for (const chunk of loaded.values()) chunk.animate?.(0);
+    },
   };
 }
 
-async function buildChunk(scene, meta, cx, cz) {
+async function buildChunk(scene, meta, cx, cz, hidden) {
   const response = await fetch(`/api/world/chunks/${cx}/${cz}`);
   if (!response.ok) throw new Error(`chunk ${cx},${cz}`);
   const payload = await response.json();
   const group = new THREE.Group();
-  const motions = [];
+  const placed = [];
   group.add(buildGround(meta, cx, cz));
-  await addInstances(group, motions, payload.scatter);
-  await addInstances(group, motions, payload.spots.map((spot) => ({
+  placed.push(...await addInstances(group, payload.scatter, hidden));
+  placed.push(...await addInstances(group, payload.spots.map((spot) => ({
     kit: "seat_cushion",
     x: spot.x,
     y: spot.y,
@@ -98,32 +121,34 @@ async function buildChunk(scene, meta, cx, cz) {
     motion: "none",
     motion_amount: 0,
     motion_period: 1,
-  })));
+  })), hidden));
   if (payload.water.length) group.add(buildWater(meta, payload.water));
   await addLandmarks(group, payload.landmarks);
   scene.add(group);
   return {
+    spots: payload.spots.map((spot) => ({ ...spot, claimed: Boolean(spot.claimed) })),
     animate(time) {
       const dummy = new THREE.Object3D();
       const touched = new Set();
-      for (const item of motions) {
-        const wave = Math.sin((time / item.period) * Math.PI * 2 + item.phase);
+      for (const item of placed) {
+        const wave = Math.sin((time / (item.period || 1)) * Math.PI * 2 + item.phase);
         dummy.position.set(item.x, item.y, item.z);
         dummy.rotation.set(0, item.rot, 0);
-        dummy.scale.setScalar(item.scale);
-        if (item.motion === "sway") dummy.rotation.z = item.amount * wave;
-        if (item.motion === "bob" || item.motion === "uv_scroll") dummy.position.y += item.amount * wave;
-        if (item.motion === "hop") dummy.position.y += item.amount * Math.max(0, wave) ** 2;
-        if (item.motion === "drift" || item.motion === "path_circle") {
-          dummy.position.x += item.amount * Math.sin(time / item.period);
-          dummy.position.z += item.amount * Math.cos(time / item.period);
+        dummy.scale.setScalar(hidden(item) ? 0 : item.scale);
+        if (!hidden(item)) {
+          if (item.motion === "sway") dummy.rotation.z = item.amount * wave;
+          if (item.motion === "bob" || item.motion === "uv_scroll") dummy.position.y += item.amount * wave;
+          if (item.motion === "hop") dummy.position.y += item.amount * Math.max(0, wave) ** 2;
+          if (item.motion === "drift" || item.motion === "path_circle") {
+            dummy.position.x += item.amount * Math.sin(time / (item.period || 1));
+            dummy.position.z += item.amount * Math.cos(time / (item.period || 1));
+          }
         }
         dummy.updateMatrix();
         item.mesh.setMatrixAt(item.index, dummy.matrix);
         touched.add(item.mesh);
       }
       for (const mesh of touched) mesh.instanceMatrix.needsUpdate = true;
-      sheetMaterial.emissive?.setScalar?.(0);
     },
     dispose() {
       scene.remove(group);
@@ -253,7 +278,8 @@ async function sourceFor(kit) {
   };
 }
 
-async function addInstances(group, motions, blocks) {
+async function addInstances(group, blocks, hidden) {
+  const placed = [];
   const byKit = new Map();
   for (const block of blocks) {
     if (!byKit.has(block.kit)) byKit.set(block.kit, []);
@@ -270,29 +296,29 @@ async function addInstances(group, motions, blocks) {
     const mesh = new THREE.InstancedMesh(geometry, material, items.length);
     const dummy = new THREE.Object3D();
     items.forEach((block, index) => {
-      dummy.position.set(block.x, block.y, block.z);
-      dummy.rotation.y = block.rot_y || 0;
-      dummy.scale.setScalar(block.scale || 1);
+      const item = {
+        mesh,
+        index,
+        x: block.x,
+        y: block.y,
+        z: block.z,
+        rot: block.rot_y || 0,
+        scale: block.scale || 1,
+        motion: block.motion || "none",
+        amount: block.motion_amount || 0,
+        period: block.motion_period || 1,
+        phase: index,
+      };
+      dummy.position.set(item.x, item.y, item.z);
+      dummy.rotation.y = item.rot;
+      dummy.scale.setScalar(hidden(item) ? 0 : item.scale);
       dummy.updateMatrix();
       mesh.setMatrixAt(index, dummy.matrix);
-      if (block.motion && block.motion !== "none") {
-        motions.push({
-          mesh,
-          index,
-          x: block.x,
-          y: block.y,
-          z: block.z,
-          rot: block.rot_y || 0,
-          scale: block.scale || 1,
-          motion: block.motion,
-          amount: block.motion_amount || 0,
-          period: block.motion_period || 1,
-          phase: index,
-        });
-      }
+      placed.push(item);
     });
     group.add(mesh);
   }
+  return placed;
 }
 
 function buildWater(meta, samples) {
