@@ -23,7 +23,7 @@ isProject: false
 
 **This file replaces the phase 2 section of `00-master-plan.md`.** The master plan still says a 400 m square, one hex of thousands of seats, six biomes, and no glTF. Ignore those decisions. When the two files disagree, follow this file. Do not rename phase 1's ground terms, ports, speed, spawn, token rules, or the 5 m exclusion constant. Do not replace `ground_height` with a generated height field.
 
-**Goal:** A person can walk out of the moss spawn, cross a river, and enter a different biome without a reload. Seat cushions appear in one irregular gathering of 100 seats in every biome, and as single cushions on a 280 m grid. They do not carpet the map.
+**Goal:** A person can walk out of the moss spawn, cross a river, and enter a different biome without a reload. Seat cushions appear in one irregular gathering of 100 seats in every biome, and as 300 single cushions across the square. They do not carpet the map.
 
 **Architecture:** Python is the only forest generator for layout. It decides biomes, the river, seats, scatter points, and landmark anchors, and serves them as JSON. Offline image-to-3D sculpts the unusual kit and landmark meshes before the game runs. The shipped generator is [TripoSR](https://github.com/VAST-AI-Research/TripoSR). The browser renders the JSON plus those committed files. It does not keep a second copy of the biome map, and it does not call a model. Spots are inserted once into this game's Postgres.
 
@@ -32,7 +32,7 @@ isProject: false
 ## Decisions this phase locks
 
 - The forest is a square **4000 m on a side**, `x` and `z` from `-2000` to `2000`. The old `-200..200` square is retired.
-- Seats are **not** a lattice. Each of the twelve biomes has one gathering of **100** cushions, placed by rejection sampling at least **10** m apart. **164 isolated cushions** sit on a 280 m grid outside those gatherings.
+- Seats are **not** a lattice. Each of the twelve biomes has one gathering of **100** cushions, placed by rejection sampling at least **10** m apart. **300 isolated cushions** sit on a 210 m grid outside those gatherings.
 - Biomes are the twelve regions below. The river is a **corridor** along a curve, not a rectangle. It cuts through the rectangles and ends in the waterfall gorge.
 - Plants come in two opposing sets: carnivorous kits live in the bog, and the flower valley, fern sea, and moss plain do not use them. Animals are meshes with local motion. They are not AI, not physics bodies, and not players.
 - Landmark and scatter variety is the product of this phase. The weird plants, animals, and landmark sculptures come from an offline open 3D generator. Seats, the river curve, and the ground formula do not.
@@ -46,8 +46,8 @@ isProject: false
 - One unit is one meter. Y is up. Yaw `0` looks toward `+Z`.
 - Cushions inside one gathering are at least `10` m apart and are not arranged on a grid. Drop a candidate that fails the gap, the biome, the wet channel, or the spawn keep.
 - `spot_seed = (WORLD_SEED + spot_id * 1013904223) & 0xFFFFFFFF`. Yaw = `(spot_seed % 3600) / 3600 * tau`. Archetype = `ARCHETYPES[biome][(spot_seed >> 8) % 4]`. The acceptance samples must not change yaw or archetype.
-- Gathering seats: **1200**. Isolated seats: **164**. Total spots: **1364**. Ids are `1..1364` with no gaps.
-- Isolated seats are at least `280` m from each other and at least `10` m from every gathering cushion.
+- Gathering seats: **1200**. Isolated seats: **300**. Total spots: **1500**. Ids are `1..1500` with no gaps.
+- Isolated seats are at least `210` m from each other and at least `10` m from every gathering cushion. The 210 m grid has more candidates than 300, so a stable hash keeps 300 of them, spread across the square.
 - No seat is placed within `14` m of spawn `(-24, 0)`. The moss gathering is centered there, so a cushion stands within `40` m in every compass direction.
 
 ## Map
@@ -149,7 +149,7 @@ Land gatherings sample a disk uniformly. The river gathering samples `x` from `-
 
 ### Isolated seats
 
-Grid coordinates are `-1680 + 280 * i` for `i` in `0..12` inclusive. The last value is `1680`. Enumerate `x` from west to east, and for each `x` enumerate `z` from south to north.
+Grid coordinates are `-1800 + 210 * i` for `i` in `0..17` inclusive. The last value is `1770`. Enumerate `x` from west to east, and for each `x` enumerate `z` from south to north.
 
 Keep `(x, z)` when:
 
@@ -158,7 +158,7 @@ Keep `(x, z)` when:
 - distance to spawn is `>= 14`
 - the point is inside the world and has a biome
 
-That keep set has **164** points. Their minimum separation is `280` m.
+That keep set is larger than 300. A hash of each point keeps **300**, spread across the forest. Their minimum separation is `210` m.
 
 ### Ids, yaw, height
 
@@ -166,10 +166,10 @@ Assign ids after both sets exist. Gatherings in the table order, cushions in acc
 
 `tests/test_spots.py`:
 
-- Each biome gathering has `100` cushions. Isolated count is `164`. Total is `1364`. Ids are `1..1364`.
+- Each biome gathering has `100` cushions. Isolated count is `300`. Total is `1500`. Ids are `1..1500`.
 - Two calls to `generate_spots()` return equal tuples.
 - Every gathering's nearest neighbor is `>= 10`, and the nearest-neighbor gaps inside one gathering differ by more than `5` m.
-- Every isolated seat is `>= 280` m from every other isolated seat and `>= 10` m from every gathering cushion.
+- Every isolated seat is `>= 210` m from every other isolated seat and `>= 10` m from every gathering cushion.
 - Every seat is at least `14` m from spawn. In each of the eight compass directions, a moss cushion is within `40` m.
 - No spot has `abs(z - river_z(x)) < 16`.
 - `biome_at(-24, 0) == "moss_plain"`.
@@ -273,7 +273,7 @@ Palettes are fog, sun, and the colors the kits actually use:
 
 `GET /api/world/chunks/{cx}/{cz}` returns `{cx, cz, spots, scatter, landmarks, water}`. Indexes outside `0..62` return `404`. Spots in that chunk do not include recipe blocks.
 
-`/health` `spots` becomes `1364`.
+`/health` `spots` becomes `1500`.
 
 ## Task 3: Offline meshes for biomes and landmarks
 
@@ -392,7 +392,7 @@ When `biome_at` of the player changes, lerp fog color, fog density, and sun colo
 ## Done when
 
 - `pytest -q` and `node web/world/check_ground.mjs` still pass.
-- `/health` reports `"spots": 1364`. Reloading the process does not increase that count. A startup whose stored seats do not match `generate_spots()` replaces the rows.
+- `/health` reports `"spots": 1500`. Reloading the process does not increase that count. A startup whose stored seats do not match `generate_spots()` replaces the rows.
 - From the spawn, a person can walk to the river ribbon and on into the lantern orchard without a reload. The light changes. Cushions are visible inside the loaded part of a clearing and are absent from the open ground between clearings.
 - The great-fall chunk payload includes a `waterfall_sheet` whose scale is at least `8`. The bog chunk used in the tests includes a pitcher and no blossom tree.
 - Any committed glTF passes `tests/test_assets.py`. A missing glTF still leaves a visible procedural kit. The page does not request a model, a weight file, or a CDN mesh.

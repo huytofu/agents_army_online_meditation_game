@@ -14,5 +14,5 @@ async def test_health_reports_seeded_spots_once():
                 response = await client.get("/health")
         assert response.status_code == 200
         seen.append(response.json())
-    assert seen[0] == {"status": "ok", "db": "ok", "spots": 1364}
+    assert seen[0] == {"status": "ok", "db": "ok", "spots": 1500}
     assert seen[1] == seen[0]

@@ -15,9 +15,10 @@ from forest_server.world.rng import mulberry32
 MIN_SEAT_GAP = 10.0
 SPAWN_KEEP_M = 14.0
 SEATS_PER_GATHERING = 100
-ISOLATED_STEP = 280.0
-ISOLATED_ORIGIN = -1680.0
-ISOLATED_STEPS = 13
+ISOLATED_STEP = 210.0
+ISOLATED_ORIGIN = -1800.0
+ISOLATED_STEPS = 18
+ISOLATED_CAP = 300
 SAMPLE_LIMIT = SEATS_PER_GATHERING * 400
 
 # biome, kind, a, b, radius. Disks use a,b as the center. The river uses a,b as an x span.
@@ -139,6 +140,16 @@ def _isolated_points(taken: list[tuple[float, float]]) -> list[tuple[float, floa
             if any(math.hypot(x - px, z - pz) < MIN_SEAT_GAP for px, pz in taken):
                 continue
             kept.append((x, z))
+    if len(kept) > ISOLATED_CAP:
+        kept.sort(
+            key=lambda point: (
+                (WORLD_SEED ^ (int(point[0]) * 73856093) ^ (int(point[1]) * 19349663)) & 0xFFFFFFFF,
+                point[0],
+                point[1],
+            )
+        )
+        kept = kept[:ISOLATED_CAP]
+        kept.sort()
     return kept
 
 

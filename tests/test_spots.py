@@ -37,7 +37,7 @@ def test_spot_counts_and_identity():
     assert [(s.id, s.x, s.z, s.biome, s.archetype, s.yaw, s.gathering) for s in first] == [
         (s.id, s.x, s.z, s.biome, s.archetype, s.yaw, s.gathering) for s in second
     ]
-    assert [s.id for s in first] == list(range(1, 1365))
+    assert [s.id for s in first] == list(range(1, 1501))
     counts = {biome: 0 for biome, *_rest in GATHERINGS}
     isolated = 0
     for spot in first:
@@ -48,9 +48,9 @@ def test_spot_counts_and_identity():
             assert spot.biome == spot.gathering
         assert abs(spot.z - river_z(spot.x)) >= 16
         assert math.hypot(spot.x - SPAWN_X, spot.z - SPAWN_Z) >= SPAWN_KEEP_M
-    assert isolated == 164
+    assert isolated == 300
     assert counts == {biome: SEATS_PER_GATHERING for biome, *_rest in GATHERINGS}
-    assert len(first) == 1364
+    assert len(first) == 1500
 
 
 def test_gatherings_are_irregular_and_ten_meters_apart():
