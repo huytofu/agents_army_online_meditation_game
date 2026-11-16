@@ -104,6 +104,41 @@ body {
   cursor: pointer;
 }
 
+#youtube [data-search][hidden],
+#youtube [data-playlists][hidden] {
+  display: none;
+}
+
+#youtube select,
+#youtube input[type="search"] {
+  width: calc(100% - 4.2rem);
+}
+
+#youtube [data-search-status] {
+  min-height: 0;
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+}
+
+#youtube [data-search-status]:empty {
+  display: none;
+}
+
+#youtube .youtube-results {
+  max-height: 9rem;
+  margin: 8px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+#youtube .youtube-results button {
+  display: block;
+  width: 100%;
+  margin-right: 0;
+  text-align: left;
+}
+
 #hud {
   position: fixed;
   top: 12px;

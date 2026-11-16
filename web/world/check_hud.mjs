@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import { bindPanelGroup, bindPanelToggle, setPanelOpen } from "../js/hud.js";
+import { bindPanelGroup, bindPanelToggle, mapToggleKey, setPanelOpen } from "../js/hud.js";
 
 function control() {
   const listeners = {};
@@ -75,10 +75,22 @@ expect(html.includes('id="minimap-toggle"'), "the map and distances need a corne
 expect(html.includes('id="minimap-body"'), "the map and distance list should collapse together");
 expect(html.includes('id="keys-toggle"'), "the keyboard help needs its own icon");
 const keys = html.slice(html.indexOf('id="keys-body"'), html.indexOf("</section>", html.indexOf('id="keys"')));
-for (const key of ["W", "A", "S", "D", "F"]) {
+for (const key of ["W", "A", "S", "D", "F", "M"]) {
   expect(keys.includes(`>${key}<`), `the keyboard card is missing the ${key} key`);
 }
 expect(/sit/i.test(keys), "the keyboard card should say that F sits");
+expect(/lights up/i.test(keys), "the keyboard card should say that F works when the cushion lights up");
+expect(/map/i.test(keys), "the keyboard card should say that M shows the map");
+
+expect(mapToggleKey({ code: "KeyM", repeat: false, target: { tagName: "BODY" } }) === true, "M should open the map");
+expect(mapToggleKey({ code: "KeyM", repeat: true, target: { tagName: "BODY" } }) === false, "holding M should not toggle the map again");
+expect(mapToggleKey({ code: "KeyM", repeat: false, target: { tagName: "INPUT" } }) === false, "typing M in a field should not fold the map");
+expect(mapToggleKey({ code: "KeyM", repeat: false, target: { tagName: "SELECT" } }) === false, "choosing a playlist with the keyboard should not fold the map");
+expect(mapToggleKey({ code: "KeyF", repeat: false, target: { tagName: "BODY" } }) === false, "F is the sit key, not the map key");
+
+const main = readFileSync(new URL("../js/main.js", import.meta.url), "utf8");
+expect(main.includes("mapToggleKey"), "the map key should use the shared toggle check");
+expect(main.includes('querySelector("#minimap-toggle").click()'), "M should press the map icon");
 
 if (failed) process.exit(1);
 process.stdout.write("hud: map and keys collapse from the corner icons\n");

@@ -4,7 +4,7 @@ import { createAvatar } from "./avatar.js";
 import { createChunkWorld } from "./chunks.js";
 import { attachControls, consume, onEnter, setSeated } from "./controls.js";
 import { groundHeight } from "./ground.js";
-import { bindPanelGroup } from "./hud.js";
+import { bindPanelGroup, mapToggleKey } from "./hud.js";
 import { biomeAt, loadMeta, paletteOf } from "./meta.js";
 import { createMinimap } from "./minimap.js";
 import { SEAT_BLEND_MS, seatBlend, seatOffset } from "./seat.js";
@@ -27,6 +27,11 @@ bindPanelGroup([
   [document.querySelector("#minimap-toggle"), document.querySelector("#minimap-body")],
   [document.querySelector("#keys-toggle"), document.querySelector("#keys-body")],
 ]);
+
+document.addEventListener("keydown", (event) => {
+  if (!mapToggleKey(event)) return;
+  document.querySelector("#minimap-toggle").click();
+});
 
 const canvas = document.querySelector("#view");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -91,6 +96,16 @@ const youtube = createYoutubePanel(async (videoId) => {
   if (!token) return false;
   const body = await postJson("/api/session/youtube", { token, video_id: videoId });
   return Boolean(body.ok);
+}, {
+  search(q) {
+    if (!token) return { ok: false, reason: "failed" };
+    return postJson("/api/youtube/search", { token, q });
+  },
+  async loadPlaylists() {
+    const response = await fetch("/playlists.json");
+    if (!response.ok) throw new Error("playlists");
+    return response.json();
+  },
 });
 
 attachControls(canvas);
