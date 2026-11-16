@@ -12,3 +12,4 @@ export const canopy = lambert(0x1d3328);
 export const ground = lambert(0x6f8f62);
 export const fog = 0xd5e2d2;
 export const sun = 0xffe0b0;
+export const vertexLambert = new THREE.MeshLambertMaterial({ vertexColors: true });

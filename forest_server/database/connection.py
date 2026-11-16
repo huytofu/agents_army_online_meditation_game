@@ -24,6 +24,9 @@ async def init_database() -> None:
         raise
     _engine = engine
     _sessions = async_sessionmaker(engine, expire_on_commit=False)
+    from forest_server.database.repository import seed_spots_if_empty
+
+    await seed_spots_if_empty()
 
 
 async def close_database() -> None:

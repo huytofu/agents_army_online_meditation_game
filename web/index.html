@@ -16,7 +16,65 @@
   <body>
     <canvas id="view"></canvas>
     <div id="enter">Click to walk into the forest</div>
-    <p id="hint" class="fade">WASD move · mouse look · V view</p>
+    <p id="hint" class="fade">WASD move · mouse look · V view · F sit</p>
+    <section id="youtube" hidden>
+      <div class="youtube-frame"></div>
+      <label>Video <input type="text" data-video maxlength="11" autocomplete="off" spellcheck="false" /></label>
+      <button type="button" data-play>Play</button>
+      <button type="button" data-stop>Stop</button>
+      <button type="button" data-search-toggle>Search</button>
+      <button type="button" data-playlist-toggle>Playlist</button>
+      <div data-search hidden>
+        <label>Find <input type="search" data-query maxlength="80" autocomplete="off" /></label>
+        <button type="button" data-find>Find</button>
+        <p data-search-status></p>
+        <ul data-results class="youtube-results"></ul>
+      </div>
+      <div data-playlists hidden>
+        <label>List <select data-playlist></select></label>
+        <ul data-playlist-videos class="youtube-results"></ul>
+      </div>
+    </section>
+    <div id="hud">
+      <div class="hud-icons">
+        <button type="button" id="minimap-toggle" class="hud-icon-button" aria-expanded="true" aria-controls="minimap-body">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7.5 9 5l6 2.5L20 5v12l-5 2.5L9 17l-5 2.5v-12z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+            <path d="M9 5v12M15 7.5V19.5" fill="none" stroke="currentColor" stroke-width="1.7" />
+          </svg>
+          <span class="sr-only">Map and distances</span>
+        </button>
+        <button type="button" id="keys-toggle" class="hud-icon-button" aria-expanded="false" aria-controls="keys-body">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7" />
+            <circle cx="7" cy="10.5" r="1" fill="currentColor" />
+            <circle cx="12" cy="10.5" r="1" fill="currentColor" />
+            <circle cx="17" cy="10.5" r="1" fill="currentColor" />
+            <path d="M7 14.5h10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+          </svg>
+          <span class="sr-only">Keyboard controls</span>
+        </button>
+      </div>
+      <section id="minimap" aria-label="Your place in the forest">
+        <div id="minimap-body" class="hud-body">
+          <canvas id="minimap-view" width="640" height="640"></canvas>
+          <div id="minimap-key"></div>
+        </div>
+      </section>
+      <section id="keys" aria-label="Keyboard controls">
+        <div id="keys-body" class="hud-body keys-card" hidden>
+          <p class="keys-label">Walk</p>
+          <div class="key-wasd">
+            <span></span><kbd>W</kbd><span></span>
+            <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+          </div>
+          <p class="keys-label">Map</p>
+          <p class="keys-map"><kbd>M</kbd> show or hide the map</p>
+          <p class="keys-label">Sit</p>
+          <p class="keys-sit"><kbd>F</kbd> sit on a cushion when it lights up</p>
+        </div>
+      </section>
+    </div>
     <script type="module" src="./js/main.js"></script>
   </body>
 </html>

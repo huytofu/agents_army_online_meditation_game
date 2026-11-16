@@ -1,10 +1,15 @@
 import * as THREE from "three";
 
 import { createAvatar } from "./avatar.js";
-import { attachControls, consume } from "./controls.js";
+import { createChunkWorld } from "./chunks.js";
+import { attachControls, consume, onEnter, setSeated } from "./controls.js";
 import { groundHeight } from "./ground.js";
-import { makeKit } from "./kits/index.js";
-import { fog, ground, sun } from "./kits/materials.js";
+import { bindPanelGroup, mapToggleKey } from "./hud.js";
+import { biomeAt, loadMeta, paletteOf } from "./meta.js";
+import { createMinimap } from "./minimap.js";
+import { SEAT_BLEND_MS, seatBlend, seatOffset } from "./seat.js";
+import { createSeatMarkers } from "./seat-markers.js";
+import { createYoutubePanel } from "./youtube.js";
 
 const MAX_SPEED = 3.2;
 const EYE_HEIGHT = 1.55;
@@ -13,9 +18,20 @@ const THIRD_HEIGHT = 1.8;
 const CHEST_HEIGHT = 1.15;
 const SPAWN_X = -24;
 const SPAWN_Z = 0;
-const PLANE_LIMIT = 48;
-const WORLD_LIMIT = 196;
 const WALK_CYCLE_SPEED = 0.15;
+const SIT_RANGE = 2.5;
+const TARGET_ACQUIRE = (10 * Math.PI) / 180;
+const TARGET_HOLD = (18 * Math.PI) / 180;
+
+bindPanelGroup([
+  [document.querySelector("#minimap-toggle"), document.querySelector("#minimap-body")],
+  [document.querySelector("#keys-toggle"), document.querySelector("#keys-body")],
+]);
+
+document.addEventListener("keydown", (event) => {
+  if (!mapToggleKey(event)) return;
+  document.querySelector("#minimap-toggle").click();
+});
 
 const canvas = document.querySelector("#view");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -23,18 +39,14 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(fog);
-scene.fog = new THREE.FogExp2(fog, 0.018);
+scene.background = new THREE.Color(0xd5e2d2);
+scene.fog = new THREE.FogExp2(0xd5e2d2, 0.018);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 220);
-
-scene.add(new THREE.HemisphereLight(sun, 0x3e6b45, 0.72));
-const sunLight = new THREE.DirectionalLight(sun, 1.2);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 600);
+scene.add(new THREE.HemisphereLight(0xffe0b0, 0x3e6b45, 0.72));
+const sunLight = new THREE.DirectionalLight(0xffe0b0, 1.2);
 sunLight.position.set(-28, 48, 16);
 scene.add(sunLight);
-
-scene.add(buildGround());
-placeGrove();
 
 const avatar = createAvatar();
 avatar.setSeated(false);
@@ -47,82 +59,87 @@ let yaw = 0;
 let pitch = 0;
 let view = "third";
 let walkPhase = 0;
+let avatarSeated = false;
+let walkLimit = 1996;
+let meta = null;
+let world = null;
+let minimap = null;
+let biome = "moss_plain";
+let blend = 1;
+let fromFog = new THREE.Color(0xd5e2d2);
+let toFog = fromFog.clone();
+let fromSun = new THREE.Color(0xffe0b0);
+let toSun = fromSun.clone();
+let fromDensity = 0.018;
+let toDensity = 0.018;
+let token = localStorage.getItem("forest_token");
+let sitting = false;
+let seat = null;
+let target = null;
+let sitBlend = 1;
+let sitFrom = new THREE.Vector3();
+let sitStartedAt = 0;
+let sitTicket = 0;
+let poseClock = 0;
+let videoAt = 0;
+
+const seatMarkers = createSeatMarkers(scene);
+const ring = new THREE.Mesh(
+  new THREE.RingGeometry(0.55, 0.72, 28),
+  new THREE.MeshBasicMaterial({ color: 0xf4f1ea, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }),
+);
+ring.rotation.x = -Math.PI / 2;
+ring.visible = false;
+scene.add(ring);
+
+const youtube = createYoutubePanel(async (videoId) => {
+  if (!token) return false;
+  const body = await postJson("/api/session/youtube", { token, video_id: videoId });
+  return Boolean(body.ok);
+}, {
+  search(q) {
+    if (!token) return { ok: false, reason: "failed" };
+    return postJson("/api/youtube/search", { token, q });
+  },
+  async loadPlaylists() {
+    const response = await fetch("/playlists.json");
+    if (!response.ok) throw new Error("playlists");
+    return response.json();
+  },
+});
 
 attachControls(canvas);
+onEnter(() => {
+  void resumeSession();
+});
 window.addEventListener("resize", resize);
+loadMeta().then((payload) => {
+  meta = payload;
+  walkLimit = payload.walk_limit;
+  world = createChunkWorld(scene, meta);
+  const first = biomeAt(meta, x, z) || "moss_plain";
+  const colors = paletteOf(meta, first);
+  fromFog = new THREE.Color(colors.fog);
+  toFog = fromFog.clone();
+  fromSun = new THREE.Color(colors.sun);
+  toSun = fromSun.clone();
+  fromDensity = colors.fog_density;
+  toDensity = colors.fog_density;
+  biome = first;
+  scene.fog.color.copy(fromFog);
+  scene.background.copy(fromFog);
+  scene.fog.density = fromDensity;
+  world.update(x, z);
+  if (sitting && seat) world.markClaimed(seat.spot_id, true);
+  minimap = createMinimap(meta);
+  minimap.update(x, z, yaw);
+});
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(frame);
 
-function buildGround() {
-  const geometry = new THREE.PlaneGeometry(PLANE_LIMIT * 2, PLANE_LIMIT * 2, 64, 64);
-  geometry.rotateX(-Math.PI / 2);
-  const positions = geometry.attributes.position;
-  for (let i = 0; i < positions.count; i += 1) {
-    const vx = positions.getX(i);
-    const vz = positions.getZ(i);
-    positions.setY(i, groundHeight(vx, vz));
-  }
-  geometry.computeVertexNormals();
-  return new THREE.Mesh(geometry, ground);
-}
-
-function placeGrove() {
-  const props = [
-    ["tree", -12, 18, 1.6, 0.4],
-    ["tree", -38, 8, 1.6, 1.1],
-    ["moss_mound", -30, 4, 1, 0],
-    ["moss_mound", -28, 11, 0.85, 0.3],
-    ["moss_mound", -18, 12, 1.15, 1],
-    ["moss_mound", -14, 5, 0.9, 0.2],
-    ["moss_mound", -17, -9, 1.2, 0.6],
-    ["moss_mound", -27, -13, 1, 0.8],
-    ["moss_mound", -35, -3, 0.8, 0.1],
-    ["moss_mound", -37, 9, 1.1, 1.4],
-    ["moss_mound", -12, 18, 0.95, 0.5],
-    ["moss_mound", -8, 1, 1.05, 2],
-    ["moss_mound", -33, 17, 1.25, 0.7],
-    ["moss_mound", -21, 20, 0.88, 1.2],
-    ["mushroom", -21, 4, 1, 0.4],
-    ["mushroom", -27, 3, 0.9, 1.2],
-    ["mushroom", -19, -4, 1.1, 2.1],
-    ["mushroom", -30, -6, 1, 0.6],
-    ["mushroom", -23, 9, 0.85, 1.7],
-    ["mushroom", -15, -2, 1.15, 0.2],
-    ["mushroom", -34, 2, 1, 2.4],
-    ["mushroom", -14, 11, 0.8, 0.9],
-    ["mushroom", -32, 13, 1.05, 1.5],
-    ["mushroom", -26, -9, 1.2, 0.3],
-    ["mushroom", -11, 8, 0.95, 2.2],
-    ["mushroom", -36, -9, 1, 1.1],
-    ["mushroom", -17, 17, 0.9, 0.8],
-    ["mushroom", -29, 19, 1.1, 1.9],
-    ["fern", -20, 2, 1, 0.2],
-    ["fern", -26, 7, 1, 1],
-    ["fern", -22, -5, 1, 0.5],
-    ["fern", -31, 0, 1,1, 1.4],
-    ["fern", -16, 8, 0.9, 0.7],
-    ["fern", -35, 6, 1, 2],
-    ["fern", -24, 11, 1, 0.4],
-    ["fern", -12, -3, 1.05, 1.6],
-    ["fern", -38, 2, 1, 0.9],
-    ["fern", -18, 15, 0.95, 1.3],
-    ["fern", -30, 15, 1, 0.1],
-    ["fern", -33, -11, 1.1, 2.3],
-  ];
-
-  for (const [name, px, pz, scale, rot] of props) {
-    const kit = makeKit(name);
-    kit.scale.setScalar(scale);
-    kit.position.set(px, groundHeight(px, pz), pz);
-    kit.rotation.y = rot;
-    scene.add(kit);
-  }
-}
-
 function clampAxis(value) {
-  const onPlane = Math.min(PLANE_LIMIT, Math.max(-PLANE_LIMIT, value));
-  return Math.min(WORLD_LIMIT, Math.max(-WORLD_LIMIT, onPlane));
+  return Math.min(walkLimit, Math.max(-walkLimit, value));
 }
 
 function resize() {
@@ -133,8 +150,9 @@ function resize() {
 
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
-  if (document.pointerLockElement === canvas) {
-    const input = consume();
+  const input = consume();
+  if (input.sitPressed) void pressSit();
+  if (!sitting && document.pointerLockElement === canvas) {
     yaw = input.yaw;
     pitch = input.pitch;
     view = input.view;
@@ -154,15 +172,82 @@ function frame() {
     } else {
       avatar.setWalkPhase(0);
     }
+    poseClock += dt;
+    if (token && poseClock >= 2) {
+      poseClock = 0;
+      void postPose();
+    }
   }
-
+  if (videoAt && performance.now() >= videoAt) {
+    videoAt = 0;
+    if (sitting) youtube.show();
+  }
+  if (meta) settleLight(dt);
+  if (world) {
+    world.update(x, z);
+    world.animate(clock.elapsedTime);
+    if (!sitting) aimRing();
+    seatMarkers.update(world.spots(), { x, z }, SIT_RANGE, clock.elapsedTime);
+  }
   avatar.object.position.set(x, y, z);
   avatar.object.rotation.y = yaw;
+  if (sitting !== avatarSeated) {
+    avatarSeated = sitting;
+    avatar.setSeated(sitting);
+  }
+  if (minimap) minimap.update(x, z, yaw);
   placeCamera();
   renderer.render(scene, camera);
 }
 
+function settleLight(dt) {
+  const next = biomeAt(meta, x, z) || biome;
+  if (next !== biome) {
+    fromFog.copy(scene.fog.color);
+    fromSun.copy(sunLight.color);
+    fromDensity = scene.fog.density;
+    const colors = paletteOf(meta, next);
+    toFog = new THREE.Color(colors.fog);
+    toSun = new THREE.Color(colors.sun);
+    toDensity = colors.fog_density;
+    if (colors.clear) scene.background = new THREE.Color(colors.clear);
+    blend = 0;
+    biome = next;
+  }
+  if (blend < 1) {
+    blend = Math.min(1, blend + dt / 1.2);
+    scene.fog.color.copy(fromFog).lerp(toFog, blend);
+    sunLight.color.copy(fromSun).lerp(toSun, blend);
+    if (!paletteOf(meta, biome).clear) scene.background.copy(scene.fog.color);
+  }
+  const baseDensity = fromDensity + (toDensity - fromDensity) * blend;
+  const border = [12, -12].some((offset) => {
+    return biomeAt(meta, x + offset, z) !== biome || biomeAt(meta, x, z + offset) !== biome;
+  });
+  scene.fog.density = baseDensity + (border ? 0.01 : 0);
+}
+
 function placeCamera() {
+  if (sitting) {
+    const seatedYaw = yaw + ((1.5 * Math.PI) / 180) * Math.sin(clock.elapsedTime / 12);
+    const anchor = seatOffset(yaw);
+    const eye = new THREE.Vector3(x + anchor.x, y + anchor.y, z + anchor.z);
+    const look = new THREE.Vector3(
+      eye.x + Math.sin(seatedYaw) * Math.cos(anchor.pitch),
+      eye.y + Math.sin(anchor.pitch),
+      eye.z + Math.cos(seatedYaw) * Math.cos(anchor.pitch),
+    );
+    avatar.object.visible = false;
+    if (sitBlend < 1) {
+      sitBlend = seatBlend(performance.now() - sitStartedAt);
+      camera.position.lerpVectors(sitFrom, eye, sitBlend);
+      camera.lookAt(look);
+      return;
+    }
+    camera.position.copy(eye);
+    camera.lookAt(look);
+    return;
+  }
   if (view === "first") {
     avatar.object.visible = false;
     camera.position.set(x, y + EYE_HEIGHT, z);
@@ -184,4 +269,143 @@ function placeCamera() {
     y + CHEST_HEIGHT + Math.sin(pitch),
     z + Math.cos(yaw) * Math.cos(pitch),
   );
+}
+
+function lookAtSpot(spot) {
+  const dx = spot.x - x;
+  const dz = spot.z - z;
+  const dist = Math.hypot(dx, dz);
+  const facing = dist === 0 ? 1 : (dx * Math.sin(yaw) + dz * Math.cos(yaw)) / dist;
+  return { dist, angle: Math.acos(Math.min(1, Math.max(-1, facing))) };
+}
+
+function aimRing() {
+  const spots = world.spots().filter((spot) => !spot.claimed);
+  if (target) {
+    const still = spots.find((spot) => spot.id === target.id);
+    if (!still) target = null;
+    else {
+      const glance = lookAtSpot(still);
+      target = glance.dist <= 14 && glance.angle <= TARGET_HOLD ? still : null;
+    }
+  }
+  if (!target) {
+    let best = null;
+    let bestDist = Infinity;
+    for (const spot of spots) {
+      const glance = lookAtSpot(spot);
+      if (glance.dist <= 12 && glance.angle <= TARGET_ACQUIRE && glance.dist < bestDist) {
+        best = spot;
+        bestDist = glance.dist;
+      }
+    }
+    target = best;
+  }
+  ring.visible = Boolean(target);
+  if (target) ring.position.set(target.x, target.y + 0.08, target.z);
+}
+
+async function postJson(url, body) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) return { ok: false, reason: "missing" };
+  return response.json();
+}
+
+async function postPose() {
+  if (!token || sitting) return;
+  await postJson("/api/pose", { token, x, y, z, yaw, pitch });
+}
+
+async function resumeSession() {
+  const opened = await postJson("/api/session", { token });
+  if (!opened.token) return;
+  token = opened.token;
+  localStorage.setItem("forest_token", token);
+  avatar.setColor(opened.color);
+  youtube.setDraft(opened.youtube_video_id);
+  if (opened.pose?.mode === "sit" && opened.pose.spot_id) {
+    beginSitVisual(opened.pose, true);
+    scheduleVideo();
+  }
+}
+
+async function pressSit() {
+  if (sitting) {
+    await standUp();
+    return;
+  }
+  if (!token || !target || lookAtSpot(target).dist > SIT_RANGE) return;
+  const spot = target;
+  const feet = { token, x, y, z, yaw, pitch };
+  const ticket = beginSitVisual({
+    x: spot.x,
+    y: spot.y,
+    z: spot.z,
+    yaw: spot.yaw,
+    pitch,
+    mode: "sit",
+    spot_id: spot.id,
+  }, false);
+  await postJson("/api/pose", feet);
+  if (ticket !== sitTicket || !sitting) return;
+  const result = await postJson("/api/sit", { token, spot_id: spot.id });
+  if (ticket !== sitTicket || !sitting) return;
+  if (!result.ok) {
+    releaseSeat();
+    if (result.reason === "taken" && world) world.markClaimed(spot.id, true);
+    target = null;
+    ring.visible = false;
+    return;
+  }
+  scheduleVideo();
+}
+
+function beginSitVisual(pose, resumed) {
+  const ticket = ++sitTicket;
+  sitting = true;
+  seat = pose;
+  x = pose.x;
+  y = pose.y;
+  z = pose.z;
+  yaw = pose.yaw;
+  setSeated(true);
+  ring.visible = false;
+  target = null;
+  if (world) {
+    world.markClaimed(pose.spot_id, true);
+    world.update(x, z);
+  }
+  sitFrom.copy(camera.position);
+  sitStartedAt = performance.now() - (resumed ? SEAT_BLEND_MS : 0);
+  sitBlend = resumed ? 1 : 0;
+  return ticket;
+}
+
+function scheduleVideo() {
+  videoAt = performance.now() + 1200;
+}
+
+function dropDiorama() {
+  youtube.hide();
+  videoAt = 0;
+}
+
+function releaseSeat() {
+  sitting = false;
+  dropDiorama();
+  if (world && seat) world.markClaimed(seat.spot_id, false);
+  seat = null;
+  setSeated(false);
+  y = groundHeight(x, z);
+}
+
+async function standUp() {
+  sitTicket += 1;
+  releaseSeat();
+  if (!token) return;
+  await postJson("/api/stand", { token });
 }
