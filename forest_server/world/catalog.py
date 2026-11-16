@@ -21,10 +21,12 @@ from forest_server.world.constants import (
     WORLD_MIN,
 )
 from forest_server.world.landmarks import LANDMARKS
+from forest_server.world.spots import gathering_markers
 from forest_server.world.scatter import SCATTER
 
 PALETTES = {
     "moss_plain": {
+        "map": "#8fb56a",
         "fog": "#d5e2d2",
         "fog_density": 0.018,
         "sun": "#ffe0b0",
@@ -34,6 +36,7 @@ PALETTES = {
         "stem": "#efe6d4",
     },
     "cathedral_trees": {
+        "map": "#1e3a32",
         "fog": "#9aa89a",
         "fog_density": 0.028,
         "sun": "#f3e2b8",
@@ -41,6 +44,7 @@ PALETTES = {
         "canopy": "#1d3328",
     },
     "river": {
+        "map": "#7eb8c4",
         "fog": "#d5e4e2",
         "fog_density": 0.016,
         "sun": "#ffe0b0",
@@ -49,6 +53,7 @@ PALETTES = {
         "reed": "#7ea15a",
     },
     "waterfall_gorge": {
+        "map": "#9aa39b",
         "fog": "#d0ddd8",
         "fog_density": 0.02,
         "sun": "#f4f0e4",
@@ -58,6 +63,7 @@ PALETTES = {
         "rainbow": "#f2c9ff",
     },
     "valley_bloom": {
+        "map": "#e7b4cf",
         "fog": "#f3e4ef",
         "fog_density": 0.012,
         "sun": "#ffe0b0",
@@ -66,6 +72,7 @@ PALETTES = {
         "ridge": "#9aa7b0",
     },
     "strange_fauna": {
+        "map": "#7d74a8",
         "fog": "#6a6288",
         "fog_density": 0.03,
         "clear": "#2a2440",
@@ -76,6 +83,7 @@ PALETTES = {
         "moth": "#f2c9ff",
     },
     "carnivorous_bog": {
+        "map": "#9aaf45",
         "fog": "#c8d2a4",
         "fog_density": 0.026,
         "clear": "#3e4630",
@@ -86,6 +94,7 @@ PALETTES = {
         "bone": "#efe6d4",
     },
     "lantern_orchard": {
+        "map": "#f0d56a",
         "fog": "#f7e2b0",
         "fog_density": 0.014,
         "sun": "#ffe0b0",
@@ -94,6 +103,7 @@ PALETTES = {
         "lamp": "#d7f28a",
     },
     "fern_sea": {
+        "map": "#2f6b4f",
         "fog": "#d5e6cf",
         "fog_density": 0.02,
         "sun": "#ffe8c4",
@@ -101,6 +111,7 @@ PALETTES = {
         "staghorn": "#7ea15a",
     },
     "hanging_vines": {
+        "map": "#5c8f4a",
         "fog": "#d7e4c8",
         "fog_density": 0.022,
         "sun": "#ffe0b0",
@@ -109,6 +120,7 @@ PALETTES = {
         "eye": "#f2c9ff",
     },
     "amber_herd": {
+        "map": "#d4894a",
         "fog": "#f0ddb8",
         "fog_density": 0.014,
         "sun": "#ffd39a",
@@ -117,6 +129,7 @@ PALETTES = {
         "bird": "#e25b4a",
     },
     "salt_mirror": {
+        "map": "#f4efe6",
         "fog": "#f4efe6",
         "fog_density": 0.01,
         "clear": "#efe8dc",
@@ -181,4 +194,9 @@ def world_meta() -> dict:
         "kits": kit_names(),
         "airy_kits": list(AIRY_KITS),
         "palettes": PALETTES,
+        "landmarks": [
+            {"name": landmark["name"], "x": landmark["x"], "z": landmark["z"]}
+            for landmark in LANDMARKS
+        ],
+        "seat_fields": gathering_markers(),
     }

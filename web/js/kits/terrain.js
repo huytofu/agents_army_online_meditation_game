@@ -52,7 +52,7 @@ export function terrainParts(name) {
   if (name === "seat_cushion") {
     return [
       piece(new THREE.CylinderGeometry(0.7, 0.7, 0.08, 12), 0x8a8178, 0, 0.04, 0),
-      piece(new THREE.TorusGeometry(0.55, 0.08, 6, 12), 0x3e6b45, 0, 0.08, 0),
+      piece(new THREE.TorusGeometry(0.55, 0.08, 6, 12), 0x3e6b45, 0, 0.08, 0, Math.PI / 2, 0, 0),
     ];
   }
   return null;
