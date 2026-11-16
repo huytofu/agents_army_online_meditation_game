@@ -1,0 +1,20 @@
+services:
+  forest_postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: meditation_forest
+      POSTGRES_USER: forest
+      POSTGRES_PASSWORD: forest
+    ports:
+      - "127.0.0.1:5436:5432"
+    volumes:
+      - meditation_forest_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forest -d meditation_forest"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  meditation_forest_pg:
+    name: meditation_forest_pg
