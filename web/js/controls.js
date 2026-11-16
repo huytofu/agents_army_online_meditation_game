@@ -9,6 +9,7 @@ let view = "third";
 let viewEdge = false;
 let sitEdge = false;
 let seated = false;
+let viewCanvas = null;
 const enterListeners = [];
 
 function pitchLimits() {
@@ -22,6 +23,7 @@ function clampPitch() {
 }
 
 export function attachControls(canvas) {
+  viewCanvas = canvas;
   const enter = document.querySelector("#enter");
 
   enter.addEventListener("click", () => {
@@ -46,7 +48,10 @@ export function attachControls(canvas) {
       return;
     }
     if (event.code === "KeyF") {
-      if (!event.repeat) sitEdge = true;
+      if (!event.repeat) {
+        sitEdge = true;
+        if (seated && viewCanvas) viewCanvas.requestPointerLock();
+      }
       return;
     }
     held.add(event.code);
@@ -64,8 +69,9 @@ export function onEnter(listener) {
 export function setSeated(value) {
   seated = Boolean(value);
   const enter = document.querySelector("#enter");
-  if (seated) document.exitPointerLock();
-  enter.hidden = seated || document.pointerLockElement === canvas;
+  const locked = Boolean(viewCanvas) && document.pointerLockElement === viewCanvas;
+  if (seated && locked) document.exitPointerLock();
+  enter.hidden = seated || (Boolean(viewCanvas) && document.pointerLockElement === viewCanvas);
 }
 
 function axis(negative, positive) {

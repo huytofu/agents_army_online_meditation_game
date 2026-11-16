@@ -7,6 +7,8 @@ import { createDiorama } from "./diorama.js";
 import { groundHeight } from "./ground.js";
 import { biomeAt, loadMeta, paletteOf } from "./meta.js";
 import { createMinimap } from "./minimap.js";
+import { SEAT_BLEND_MS, seatBlend, seatOffset } from "./seat.js";
+import { createSeatMarkers } from "./seat-markers.js";
 import { createYoutubePanel } from "./youtube.js";
 
 const MAX_SPEED = 3.2;
@@ -20,7 +22,6 @@ const WALK_CYCLE_SPEED = 0.15;
 const SIT_RANGE = 2.5;
 const TARGET_ACQUIRE = (10 * Math.PI) / 180;
 const TARGET_HOLD = (18 * Math.PI) / 180;
-const SEAT_PITCH = (-4 * Math.PI) / 180;
 
 const canvas = document.querySelector("#view");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -68,9 +69,12 @@ let target = null;
 let diorama = null;
 let sitBlend = 1;
 let sitFrom = new THREE.Vector3();
+let sitStartedAt = 0;
+let sitTicket = 0;
 let poseClock = 0;
-let showVideo = 0;
+let videoAt = 0;
 
+const seatMarkers = createSeatMarkers(scene);
 const ring = new THREE.Mesh(
   new THREE.RingGeometry(0.55, 0.72, 28),
   new THREE.MeshBasicMaterial({ color: 0xf4f1ea, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }),
@@ -158,15 +162,16 @@ function frame() {
       void postPose();
     }
   }
-  if (showVideo > 0) {
-    showVideo = Math.max(0, showVideo - dt);
-    if (showVideo === 0 && sitting) youtube.show();
+  if (videoAt && performance.now() >= videoAt) {
+    videoAt = 0;
+    if (sitting) youtube.show();
   }
   if (meta) settleLight(dt);
   if (world) {
     world.update(x, z);
     world.animate(clock.elapsedTime);
     if (!sitting) aimRing();
+    seatMarkers.update(world.spots(), { x, z }, SIT_RANGE, clock.elapsedTime);
   }
   if (diorama) diorama.update(performance.now() / 1000);
   avatar.object.position.set(x, y, z);
@@ -176,7 +181,7 @@ function frame() {
     avatar.setSeated(sitting);
   }
   if (minimap) minimap.update(x, z, yaw);
-  placeCamera(dt);
+  placeCamera();
   renderer.render(scene, camera);
 }
 
@@ -207,18 +212,19 @@ function settleLight(dt) {
   scene.fog.density = baseDensity + (border ? 0.01 : 0);
 }
 
-function placeCamera(dt) {
+function placeCamera() {
   if (sitting) {
     const seatedYaw = yaw + ((1.5 * Math.PI) / 180) * Math.sin(clock.elapsedTime / 12);
-    const eye = new THREE.Vector3(x, y + 1.15, z);
+    const anchor = seatOffset(yaw);
+    const eye = new THREE.Vector3(x + anchor.x, y + anchor.y, z + anchor.z);
     const look = new THREE.Vector3(
-      x + Math.sin(seatedYaw) * Math.cos(SEAT_PITCH),
-      y + 1.15 + Math.sin(SEAT_PITCH),
-      z + Math.cos(seatedYaw) * Math.cos(SEAT_PITCH),
+      eye.x + Math.sin(seatedYaw) * Math.cos(anchor.pitch),
+      eye.y + Math.sin(anchor.pitch),
+      eye.z + Math.cos(seatedYaw) * Math.cos(anchor.pitch),
     );
     avatar.object.visible = false;
     if (sitBlend < 1) {
-      sitBlend = Math.min(1, sitBlend + dt / 0.8);
+      sitBlend = seatBlend(performance.now() - sitStartedAt);
       camera.position.lerpVectors(sitFrom, eye, sitBlend);
       camera.lookAt(look);
       return;
@@ -307,7 +313,8 @@ async function resumeSession() {
   avatar.setColor(opened.color);
   youtube.setDraft(opened.youtube_video_id);
   if (opened.pose?.mode === "sit" && opened.pose.spot_id) {
-    await beginSit(opened.pose, true);
+    const ticket = beginSitVisual(opened.pose, true);
+    await loadRecipe(opened.pose, ticket);
   }
 }
 
@@ -317,18 +324,33 @@ async function pressSit() {
     return;
   }
   if (!token || !target || lookAtSpot(target).dist > SIT_RANGE) return;
-  await postPose();
-  const result = await postJson("/api/sit", { token, spot_id: target.id });
+  const spot = target;
+  const feet = { token, x, y, z, yaw, pitch };
+  const ticket = beginSitVisual({
+    x: spot.x,
+    y: spot.y,
+    z: spot.z,
+    yaw: spot.yaw,
+    pitch,
+    mode: "sit",
+    spot_id: spot.id,
+  }, false);
+  await postJson("/api/pose", feet);
+  if (ticket !== sitTicket || !sitting) return;
+  const result = await postJson("/api/sit", { token, spot_id: spot.id });
+  if (ticket !== sitTicket || !sitting) return;
   if (!result.ok) {
-    if (result.reason === "taken" && world) world.markClaimed(target.id, true);
+    releaseSeat();
+    if (result.reason === "taken" && world) world.markClaimed(spot.id, true);
     target = null;
     ring.visible = false;
     return;
   }
-  await beginSit(result.pose, false);
+  await loadRecipe(result.pose, ticket);
 }
 
-async function beginSit(pose, resumed) {
+function beginSitVisual(pose, resumed) {
+  const ticket = ++sitTicket;
   sitting = true;
   seat = pose;
   x = pose.x;
@@ -344,37 +366,55 @@ async function beginSit(pose, resumed) {
     world.update(x, z);
   }
   sitFrom.copy(camera.position);
+  sitStartedAt = performance.now() - (resumed ? SEAT_BLEND_MS : 0);
   sitBlend = resumed ? 1 : 0;
+  return ticket;
+}
+
+async function loadRecipe(pose, ticket) {
   const recipe = await fetch(`/api/world/spots/${pose.spot_id}/recipe`);
+  if (ticket !== sitTicket || !sitting) return;
   if (recipe.ok) {
     const body = await recipe.json();
+    if (ticket !== sitTicket || !sitting) return;
     if (diorama) diorama.dispose();
     diorama = await createDiorama(
       { id: body.spot_id, x: pose.x, z: pose.z, yaw: body.yaw },
       body.blocks,
     );
+    if (ticket !== sitTicket || !sitting) {
+      diorama.dispose();
+      diorama = null;
+      return;
+    }
     scene.add(diorama.object);
     diorama.update(performance.now() / 1000);
   }
-  showVideo = 1.2;
+  videoAt = performance.now() + 1200;
 }
 
-async function standUp() {
-  if (!token) return;
-  const result = await postJson("/api/stand", { token });
-  if (diorama) diorama.dispose();
-  diorama = null;
+function dropDiorama() {
   youtube.hide();
-  showVideo = 0;
+  videoAt = 0;
+  if (!diorama) return;
+  const leaving = diorama;
+  diorama = null;
+  setTimeout(() => leaving.dispose(), 0);
+}
+
+function releaseSeat() {
   sitting = false;
+  dropDiorama();
   if (world && seat) world.markClaimed(seat.spot_id, false);
   seat = null;
   if (world) world.setVeil(null);
   setSeated(false);
-  if (result.ok) {
-    x = result.pose.x;
-    y = result.pose.y;
-    z = result.pose.z;
-  }
   y = groundHeight(x, z);
+}
+
+async function standUp() {
+  sitTicket += 1;
+  releaseSeat();
+  if (!token) return;
+  await postJson("/api/stand", { token });
 }
