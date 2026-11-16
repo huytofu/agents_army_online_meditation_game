@@ -16,3 +16,7 @@ export function seatBlend(elapsedMs) {
   if (elapsedMs <= 0) return 0;
   return Math.min(1, elapsedMs / SEAT_BLEND_MS);
 }
+
+export function seatMarkerVisible(distance, range, claimed) {
+  return !claimed && distance > range;
+}
