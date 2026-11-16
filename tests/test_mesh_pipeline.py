@@ -50,12 +50,17 @@ def test_fit_seats_and_scales():
     assert span == pytest.approx(1.4)
 
 
-def test_exported_glb_is_nonmetallic(tmp_path):
+def _triangle():
     vertices = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.2]], dtype=np.float64)
     faces = np.array([[0, 1, 2]])
     uvs = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
     normals = np.array([[0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0]])
     texture = Image.new("RGBA", (4, 4), (20, 180, 40, 255))
+    return vertices, faces, uvs, texture, normals
+
+
+def test_exported_glb_is_nonmetallic(tmp_path):
+    vertices, faces, uvs, texture, normals = _triangle()
     path = tmp_path / "sample.glb"
     export_pbr_glb(vertices, faces, uvs, texture, normals, path)
     data = path.read_bytes()
@@ -68,6 +73,21 @@ def test_exported_glb_is_nonmetallic(tmp_path):
     assert "baseColorTexture" in material
     assert "NORMAL" in document["meshes"][0]["primitives"][0]["attributes"]
     assert len(document["meshes"]) == 1
+
+
+def test_export_writes_glb_when_the_path_suffix_is_partial(tmp_path):
+    """A staging name like kit.glb.partial must still be a glTF binary.
+
+    trimesh picks the format from the last suffix, so `.partial` is not a format.
+    """
+    vertices, faces, uvs, texture, normals = _triangle()
+    path = (tmp_path / "sample.glb").with_suffix(".glb.partial")
+    export_pbr_glb(vertices, faces, uvs, texture, normals, path)
+    data = path.read_bytes()
+    assert data[:4] == b"glTF"
+    length = struct.unpack_from("<I", data, 12)[0]
+    document = json.loads(data[20 : 20 + length])
+    assert document["asset"]["version"] == "2.0"
 
 
 def test_silhouette_accepts_the_same_shape():

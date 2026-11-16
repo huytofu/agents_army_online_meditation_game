@@ -198,7 +198,9 @@ def export_pbr_glb(vertices, faces, uvs, texture: Image.Image, normals, path: Pa
         ),
     )
     path.parent.mkdir(parents=True, exist_ok=True)
-    mesh.export(path)
+    # The staging file is "<name>.glb.partial". trimesh would read that last
+    # suffix as the format name "partial" and refuse to write.
+    mesh.export(path, file_type="glb")
 
 
 def _ensure_python_headers() -> None:
