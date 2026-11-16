@@ -19,9 +19,21 @@
     <p id="hint" class="fade">WASD move · mouse look · V view · F sit</p>
     <section id="youtube" hidden>
       <div class="youtube-frame"></div>
-      <label>Video <input type="text" maxlength="11" autocomplete="off" spellcheck="false" /></label>
+      <label>Video <input type="text" data-video maxlength="11" autocomplete="off" spellcheck="false" /></label>
       <button type="button" data-play>Play</button>
       <button type="button" data-stop>Stop</button>
+      <button type="button" data-search-toggle>Search</button>
+      <button type="button" data-playlist-toggle>Playlist</button>
+      <div data-search hidden>
+        <label>Find <input type="search" data-query maxlength="80" autocomplete="off" /></label>
+        <button type="button" data-find>Find</button>
+        <p data-search-status></p>
+        <ul data-results class="youtube-results"></ul>
+      </div>
+      <div data-playlists hidden>
+        <label>List <select data-playlist></select></label>
+        <ul data-playlist-videos class="youtube-results"></ul>
+      </div>
     </section>
     <div id="hud">
       <div class="hud-icons">
@@ -56,8 +68,10 @@
             <span></span><kbd>W</kbd><span></span>
             <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
           </div>
+          <p class="keys-label">Map</p>
+          <p class="keys-map"><kbd>M</kbd> show or hide the map</p>
           <p class="keys-label">Sit</p>
-          <p class="keys-sit"><kbd>F</kbd> sit on a cushion</p>
+          <p class="keys-sit"><kbd>F</kbd> sit on a cushion when it lights up</p>
         </div>
       </section>
     </div>

@@ -1,0 +1,19 @@
+{
+  "playlists": [
+    {
+      "title": "Quiet forest",
+      "videos": [
+        { "id": "eKFTSSKCzWA", "title": "Forest waterfall" },
+        { "id": "d0tU18Ybcvk", "title": "Forest river" },
+        { "id": "pPrO2jlay40", "title": "Rainforest" }
+      ]
+    },
+    {
+      "title": "Rain",
+      "videos": [
+        { "id": "8plwv25NYRo", "title": "Rain in the spruce forest" },
+        { "id": "eVtdlsuGw4c", "title": "Forest bathing" }
+      ]
+    }
+  ]
+}
