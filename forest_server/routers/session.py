@@ -17,6 +17,7 @@ from forest_server.database.repository import (
     spot_by_id,
     update_pose,
 )
+from forest_server.youtube_search import search_with_server_key
 
 router = APIRouter(prefix="/api")
 VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
@@ -43,6 +44,11 @@ class SitBody(BaseModel):
 class VideoBody(BaseModel):
     token: str
     video_id: str | None = None
+
+
+class SearchBody(BaseModel):
+    token: str
+    q: str = ""
 
 
 def _missing():
@@ -121,3 +127,11 @@ async def post_youtube(body: VideoBody) -> dict:
         return {"ok": False, "reason": "bad_video"}
     await set_youtube(found["session_id"], body.video_id)
     return {"ok": True, "youtube_video_id": body.video_id}
+
+
+@router.post("/youtube/search")
+async def post_youtube_search(body: SearchBody) -> dict:
+    found = await session_by_token(body.token)
+    if found is None:
+        return _missing()
+    return await search_with_server_key(body.q)

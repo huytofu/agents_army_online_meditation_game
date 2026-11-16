@@ -1,3 +1,11 @@
+const FIELD = new Set(["INPUT", "TEXTAREA", "SELECT"]);
+
+export function mapToggleKey(event) {
+  if (event.code !== "KeyM" || event.repeat) return false;
+  const tag = event.target && event.target.tagName;
+  return !FIELD.has(tag);
+}
+
 export function setPanelOpen(button, panel, open) {
   const shown = Boolean(open);
   button.setAttribute("aria-expanded", shown ? "true" : "false");
