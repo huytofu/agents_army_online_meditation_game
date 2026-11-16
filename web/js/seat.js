@@ -1,4 +1,4 @@
-export const SEAT_EYE = 1.5;
+export const SEAT_EYE = 1.72;
 export const SEAT_BACK = 0.85;
 export const SEAT_PITCH = (-6 * Math.PI) / 180;
 export const SEAT_BLEND_MS = 800;
