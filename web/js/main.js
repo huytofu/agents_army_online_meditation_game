@@ -8,6 +8,7 @@ import { groundHeight } from "./ground.js";
 import { biomeAt, loadMeta, paletteOf } from "./meta.js";
 import { createMinimap } from "./minimap.js";
 import { SEAT_BLEND_MS, seatBlend, seatOffset } from "./seat.js";
+import { createSeatMarkers } from "./seat-markers.js";
 import { createYoutubePanel } from "./youtube.js";
 
 const MAX_SPEED = 3.2;
@@ -73,6 +74,7 @@ let sitTicket = 0;
 let poseClock = 0;
 let videoAt = 0;
 
+const seatMarkers = createSeatMarkers(scene);
 const ring = new THREE.Mesh(
   new THREE.RingGeometry(0.55, 0.72, 28),
   new THREE.MeshBasicMaterial({ color: 0xf4f1ea, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }),
@@ -169,6 +171,7 @@ function frame() {
     world.update(x, z);
     world.animate(clock.elapsedTime);
     if (!sitting) aimRing();
+    seatMarkers.update(world.spots(), { x, z }, SIT_RANGE, clock.elapsedTime);
   }
   if (diorama) diorama.update(performance.now() / 1000);
   avatar.object.position.set(x, y, z);
