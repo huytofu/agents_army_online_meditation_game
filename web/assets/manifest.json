@@ -36,7 +36,7 @@
     "sundew",
     "tree_branched",
     "tree_broad",
-    // "tree_dead", // glb file needs revision
+    "tree_dead",
     "tree_tall",
     "tree_yellow",
     "vine_noose",
