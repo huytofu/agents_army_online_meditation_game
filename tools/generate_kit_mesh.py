@@ -17,14 +17,16 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from tools.prepare_reference import (
     GROUND,
     REFERENCE_DIR,
     SKIP,
     reference_report,
 )
-
-ROOT = Path(__file__).resolve().parents[1]
 KIT_DIR = ROOT / "web" / "assets" / "kits"
 TARGETS_PATH = Path(__file__).resolve().parent / "kit_targets.json"
 TRIPOSR_DIR = Path.home() / ".cache" / "forest-triposr"
