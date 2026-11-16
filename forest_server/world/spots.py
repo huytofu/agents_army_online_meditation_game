@@ -1,29 +1,40 @@
-"""Seat clearings and isolated seats. Python is the only place these coordinates exist."""
+"""One irregular cushion gathering per biome, plus scattered single cushions.
+
+Python is the only place these coordinates exist. Gatherings are rejection-sampled,
+so the cushions do not sit on a lattice.
+"""
 
 import math
 from dataclasses import dataclass
 
 from forest_server.world.biomes import ARCHETYPES, biome_at, chunk_index, river_z
-from forest_server.world.constants import WORLD_MAX, WORLD_MIN, WORLD_SEED
+from forest_server.world.constants import SPAWN_X, SPAWN_Z, WORLD_MAX, WORLD_MIN, WORLD_SEED
 from forest_server.world.ground import ground_height
+from forest_server.world.rng import mulberry32
 
-ROW_H = 8.0 * math.sqrt(3) / 2
+MIN_SEAT_GAP = 10.0
+SPAWN_KEEP_M = 14.0
+SEATS_PER_GATHERING = 100
+ISOLATED_STEP = 210.0
+ISOLATED_ORIGIN = -1800.0
+ISOLATED_STEPS = 18
+ISOLATED_CAP = 300
+SAMPLE_LIMIT = SEATS_PER_GATHERING * 400
 
-# name, biome, x, z, radius, expected count
-FIELDS = (
-    ("dew_camp", "moss_plain", -1100.0, 200.0, 76.0, 313),
-    ("mushroom_yard", "moss_plain", -400.0, 500.0, 70.0, 283),
-    ("bloom_bowl", "valley_bloom", -1200.0, 1400.0, 84.0, 397),
-    ("petal_steps", "valley_bloom", -700.0, 1650.0, 72.0, 301),
-    ("vine_loft", "hanging_vines", 200.0, 1500.0, 74.0, 313),
-    ("fall_ledge", "waterfall_gorge", 1400.0, 1600.0, 68.0, 253),
-    ("fern_hollow", "fern_sea", -1200.0, -700.0, 80.0, 367),
-    ("bog_ring", "carnivorous_bog", 400.0, -700.0, 76.0, 313),
-    ("herd_shade", "amber_herd", 1550.0, -600.0, 78.0, 349),
-    ("orchard_glow", "lantern_orchard", 1200.0, 300.0, 82.0, 379),
-    ("spore_camp", "strange_fauna", -1200.0, -1550.0, 74.0, 313),
-    ("nave_roots", "cathedral_trees", 700.0, -1550.0, 80.0, 363),
-    ("mirror_shelf", "salt_mirror", 1700.0, -1550.0, 66.0, 253),
+# biome, kind, a, b, radius. Disks use a,b as the center. The river uses a,b as an x span.
+GATHERINGS = (
+    ("moss_plain", "disk", -24.0, 0.0, 95.0),
+    ("cathedral_trees", "disk", 800.0, -1550.0, 120.0),
+    ("river", "river", -600.0, 400.0, 0.0),
+    ("waterfall_gorge", "disk", 1500.0, 1500.0, 140.0),
+    ("valley_bloom", "disk", -1200.0, 1450.0, 120.0),
+    ("strange_fauna", "disk", -1100.0, -1550.0, 120.0),
+    ("carnivorous_bog", "disk", 400.0, -650.0, 120.0),
+    ("lantern_orchard", "disk", 1400.0, 200.0, 120.0),
+    ("fern_sea", "disk", -1200.0, -650.0, 120.0),
+    ("hanging_vines", "disk", 200.0, 1500.0, 120.0),
+    ("amber_herd", "disk", 1550.0, -650.0, 120.0),
+    ("salt_mirror", "disk", 1700.0, -1550.0, 110.0),
 )
 
 
@@ -38,6 +49,7 @@ class Spot:
     yaw: float
     chunk_x: int
     chunk_z: int
+    gathering: str | None
 
     def as_row(self) -> dict:
         return {
@@ -57,49 +69,93 @@ def _inside_world(x: float, z: float) -> bool:
     return WORLD_MIN < x < WORLD_MAX and WORLD_MIN < z < WORLD_MAX
 
 
-def _clearing_points(cx: float, cz: float, radius: float, biome: str) -> list[tuple[float, float]]:
-    max_row = int(radius / ROW_H) + 2
-    max_col = int(radius / 8.0) + 2
+def _clear(x: float, z: float, biome: str, taken: list[tuple[float, float]]) -> bool:
+    if not _inside_world(x, z):
+        return False
+    if abs(z - river_z(x)) < 16.0:
+        return False
+    if biome_at(x, z) != biome:
+        return False
+    if math.hypot(x - SPAWN_X, z - SPAWN_Z) < SPAWN_KEEP_M:
+        return False
+    return all(math.hypot(x - px, z - pz) >= MIN_SEAT_GAP for px, pz in taken)
+
+
+def _sample_disk(cx: float, cz: float, radius: float, biome: str, rng) -> list[tuple[float, float]]:
     points: list[tuple[float, float]] = []
-    for row in range(-max_row, max_row + 1):
-        z = cz + row * ROW_H
-        stagger = 4.0 if row % 2 else 0.0
-        for col in range(-max_col, max_col + 1):
-            x = cx + col * 8.0 + stagger
-            if math.hypot(x - cx, z - cz) > radius:
-                continue
-            if not _inside_world(x, z):
-                continue
-            if abs(z - river_z(x)) < 16.0:
-                continue
-            if biome_at(x, z) != biome:
-                continue
+    tries = 0
+    while len(points) < SEATS_PER_GATHERING and tries < SAMPLE_LIMIT:
+        tries += 1
+        angle = rng() * math.tau
+        dist = radius * math.sqrt(rng())
+        x = cx + math.cos(angle) * dist
+        z = cz + math.sin(angle) * dist
+        if _clear(x, z, biome, points):
             points.append((x, z))
     return points
 
 
-def _isolated_points() -> list[tuple[float, float]]:
-    coords = [-1800.0 + 220.0 * i for i in range(17)]
+def _sample_river(x0: float, x1: float, rng) -> list[tuple[float, float]]:
+    points: list[tuple[float, float]] = []
+    tries = 0
+    while len(points) < SEATS_PER_GATHERING and tries < SAMPLE_LIMIT:
+        tries += 1
+        x = x0 + rng() * (x1 - x0)
+        side = -1.0 if rng() < 0.5 else 1.0
+        offset = 18.0 + rng() * 34.0
+        z = river_z(x) + side * offset
+        if _clear(x, z, "river", points):
+            points.append((x, z))
+    return points
+
+
+def _gathering_points() -> list[tuple[str, float, float]]:
+    placed: list[tuple[str, float, float]] = []
+    for index, (biome, kind, a, b, radius) in enumerate(GATHERINGS):
+        seed = (WORLD_SEED ^ ((index + 1) * 0x9E3779B1)) & 0xFFFFFFFF
+        rng = mulberry32(seed)
+        if kind == "disk":
+            points = _sample_disk(a, b, radius, biome, rng)
+        elif kind == "river":
+            points = _sample_river(a, b, rng)
+        else:
+            raise RuntimeError(f"unknown gathering {kind}")
+        if len(points) != SEATS_PER_GATHERING:
+            raise RuntimeError(f"{biome} placed {len(points)} cushions, wanted {SEATS_PER_GATHERING}")
+        placed.extend((biome, x, z) for x, z in points)
+    return placed
+
+
+def _isolated_points(taken: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    coords = [ISOLATED_ORIGIN + ISOLATED_STEP * index for index in range(ISOLATED_STEPS)]
     kept: list[tuple[float, float]] = []
-    for ix, x in enumerate(coords):
-        for iz, z in enumerate(coords):
+    for x in coords:
+        for z in coords:
             if abs(z - river_z(x)) < 16.0:
                 continue
-            if any(
-                math.hypot(x - fx, z - fz) <= radius + 80.0
-                for _name, _biome, fx, fz, radius, _count in FIELDS
-            ):
+            if math.hypot(x - SPAWN_X, z - SPAWN_Z) < SPAWN_KEEP_M:
                 continue
-            digest = (WORLD_SEED ^ (ix * 73856093) ^ (iz * 19349663)) & 0xFFFFFFFF
-            if digest % 100 >= 22:
+            if not _inside_world(x, z) or biome_at(x, z) is None:
+                continue
+            if any(math.hypot(x - px, z - pz) < MIN_SEAT_GAP for px, pz in taken):
                 continue
             kept.append((x, z))
+    if len(kept) > ISOLATED_CAP:
+        kept.sort(
+            key=lambda point: (
+                (WORLD_SEED ^ (int(point[0]) * 73856093) ^ (int(point[1]) * 19349663)) & 0xFFFFFFFF,
+                point[0],
+                point[1],
+            )
+        )
+        kept = kept[:ISOLATED_CAP]
+        kept.sort()
     return kept
 
 
-def _decorate(raw: list[tuple[float, float]]) -> list[Spot]:
+def _decorate(raw: list[tuple[str | None, float, float]]) -> list[Spot]:
     spots: list[Spot] = []
-    for index, (x, z) in enumerate(raw, start=1):
+    for index, (gathering, x, z) in enumerate(raw, start=1):
         biome = biome_at(x, z)
         if biome is None:
             raise RuntimeError(f"spot {(x, z)} has no biome")
@@ -117,21 +173,26 @@ def _decorate(raw: list[tuple[float, float]]) -> list[Spot]:
                 yaw=yaw,
                 chunk_x=chunk_index(x),
                 chunk_z=chunk_index(z),
+                gathering=gathering,
             )
         )
     return spots
 
 
 def generate_spots() -> list[Spot]:
-    raw: list[tuple[float, float]] = []
-    for _name, biome, x, z, radius, _count in FIELDS:
-        raw.extend(_clearing_points(x, z, radius, biome))
-    raw.extend(_isolated_points())
+    gathered = _gathering_points()
+    isolated = _isolated_points([(x, z) for _name, x, z in gathered])
+    raw: list[tuple[str | None, float, float]] = list(gathered)
+    raw.extend((None, x, z) for x, z in isolated)
     return _decorate(raw)
 
 
-def field_name_for(x: float, z: float) -> str | None:
-    for name, _biome, fx, fz, radius, _count in FIELDS:
-        if math.hypot(x - fx, z - fz) <= radius:
-            return name
-    return None
+def gathering_markers() -> list[dict]:
+    markers = []
+    for biome, kind, a, b, radius in GATHERINGS:
+        if kind == "disk":
+            markers.append({"name": biome, "x": a, "z": b, "radius": radius})
+        else:
+            mid = (a + b) / 2.0
+            markers.append({"name": biome, "x": mid, "z": river_z(mid) + 28.0, "radius": 24.0})
+    return markers

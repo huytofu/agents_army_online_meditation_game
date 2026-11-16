@@ -1,0 +1,170 @@
+{
+  "acid_cup": {
+    "kind": "standing",
+    "height": 0.35
+  },
+  "beetle_lamp": {
+    "kind": "standing",
+    "height": 0.35
+  },
+  "blossom_tree": {
+    "kind": "standing",
+    "height": 6.0
+  },
+  "brine_skipper": {
+    "kind": "standing",
+    "height": 0.2
+  },
+  "butterfly": {
+    "kind": "standing",
+    "height": 0.32
+  },
+  "dirt_patch": {
+    "kind": "ground",
+    "footprint": 1.4
+  },
+  "dragonfly": {
+    "kind": "standing",
+    "height": 0.25
+  },
+  "epiphyte": {
+    "kind": "standing",
+    "height": 0.6
+  },
+  "fallen_leaves": {
+    "kind": "ground",
+    "footprint": 1.2
+  },
+  "fiddlehead": {
+    "kind": "standing",
+    "height": 0.55
+  },
+  "flower_blue": {
+    "kind": "standing",
+    "height": 0.55
+  },
+  "flower_gold": {
+    "kind": "standing",
+    "height": 0.55
+  },
+  "flower_pink": {
+    "kind": "standing",
+    "height": 0.55
+  },
+  "flower_white": {
+    "kind": "standing",
+    "height": 0.55
+  },
+  "glass_leaf": {
+    "kind": "standing",
+    "height": 0.8
+  },
+  "glow_moth": {
+    "kind": "standing",
+    "height": 0.3
+  },
+  "grass_patch": {
+    "kind": "ground",
+    "footprint": 1.6
+  },
+  "grazer": {
+    "kind": "standing",
+    "height": 1.0
+  },
+  "heron": {
+    "kind": "standing",
+    "height": 1.3
+  },
+  "kite_bird": {
+    "kind": "standing",
+    "height": 0.9
+  },
+  "lantern_frog": {
+    "kind": "standing",
+    "height": 0.35
+  },
+  "loris": {
+    "kind": "standing",
+    "height": 0.45
+  },
+  "monkey": {
+    "kind": "standing",
+    "height": 0.85
+  },
+  "mud_patch": {
+    "kind": "ground",
+    "footprint": 1.5
+  },
+  "mushroom_brown": {
+    "kind": "standing",
+    "height": 0.4
+  },
+  "mushroom_gold": {
+    "kind": "standing",
+    "height": 0.4
+  },
+  "mushroom_white": {
+    "kind": "standing",
+    "height": 0.4
+  },
+  "pitcher": {
+    "kind": "standing",
+    "height": 1.6
+  },
+  "rabbit": {
+    "kind": "standing",
+    "height": 0.45
+  },
+  "snap_maw": {
+    "kind": "standing",
+    "height": 0.7
+  },
+  "songbird": {
+    "kind": "standing",
+    "height": 0.28
+  },
+  "spiral_tree": {
+    "kind": "standing",
+    "height": 3.0
+  },
+  "staghorn": {
+    "kind": "standing",
+    "height": 1.1
+  },
+  "sundew": {
+    "kind": "standing",
+    "height": 0.45
+  },
+  "tree_branched": {
+    "kind": "standing",
+    "height": 9.0
+  },
+  "tree_broad": {
+    "kind": "standing",
+    "height": 11.0
+  },
+  "tree_dead": {
+    "kind": "standing",
+    "height": 5.0
+  },
+  "tree_tall": {
+    "kind": "standing",
+    "height": 14.0
+  },
+  "tree_yellow": {
+    "kind": "standing",
+    "height": 8.0
+  },
+  "vine_noose": {
+    "kind": "standing",
+    "height": 1.2
+  },
+  "water_puddle": {
+    "kind": "ground",
+    "footprint": 1.2
+  },
+  "worm": {
+    "kind": "standing",
+    "height": 0.12
+  }
+}

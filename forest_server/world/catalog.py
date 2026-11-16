@@ -21,6 +21,7 @@ from forest_server.world.constants import (
     WORLD_MIN,
 )
 from forest_server.world.landmarks import LANDMARKS
+from forest_server.world.spots import gathering_markers
 from forest_server.world.scatter import SCATTER
 
 PALETTES = {
@@ -197,4 +198,5 @@ def world_meta() -> dict:
             {"name": landmark["name"], "x": landmark["x"], "z": landmark["z"]}
             for landmark in LANDMARKS
         ],
+        "seat_fields": gathering_markers(),
     }
