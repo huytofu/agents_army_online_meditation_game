@@ -3,7 +3,6 @@ import * as THREE from "three";
 import { createAvatar } from "./avatar.js";
 import { createChunkWorld } from "./chunks.js";
 import { attachControls, consume, onEnter, setSeated } from "./controls.js";
-import { createDiorama } from "./diorama.js";
 import { groundHeight } from "./ground.js";
 import { bindPanelGroup } from "./hud.js";
 import { biomeAt, loadMeta, paletteOf } from "./meta.js";
@@ -72,7 +71,6 @@ let token = localStorage.getItem("forest_token");
 let sitting = false;
 let seat = null;
 let target = null;
-let diorama = null;
 let sitBlend = 1;
 let sitFrom = new THREE.Vector3();
 let sitStartedAt = 0;
@@ -117,10 +115,7 @@ loadMeta().then((payload) => {
   scene.background.copy(fromFog);
   scene.fog.density = fromDensity;
   world.update(x, z);
-  if (sitting && seat) {
-    world.markClaimed(seat.spot_id, true);
-    world.setVeil({ x, z, radius: 25, keepX: x, keepZ: z });
-  }
+  if (sitting && seat) world.markClaimed(seat.spot_id, true);
   minimap = createMinimap(meta);
   minimap.update(x, z, yaw);
 });
@@ -179,7 +174,6 @@ function frame() {
     if (!sitting) aimRing();
     seatMarkers.update(world.spots(), { x, z }, SIT_RANGE, clock.elapsedTime);
   }
-  if (diorama) diorama.update(performance.now() / 1000);
   avatar.object.position.set(x, y, z);
   avatar.object.rotation.y = yaw;
   if (sitting !== avatarSeated) {
@@ -319,8 +313,8 @@ async function resumeSession() {
   avatar.setColor(opened.color);
   youtube.setDraft(opened.youtube_video_id);
   if (opened.pose?.mode === "sit" && opened.pose.spot_id) {
-    const ticket = beginSitVisual(opened.pose, true);
-    await loadRecipe(opened.pose, ticket);
+    beginSitVisual(opened.pose, true);
+    scheduleVideo();
   }
 }
 
@@ -352,7 +346,7 @@ async function pressSit() {
     ring.visible = false;
     return;
   }
-  await loadRecipe(result.pose, ticket);
+  scheduleVideo();
 }
 
 function beginSitVisual(pose, resumed) {
@@ -368,7 +362,6 @@ function beginSitVisual(pose, resumed) {
   target = null;
   if (world) {
     world.markClaimed(pose.spot_id, true);
-    world.setVeil({ x, z, radius: 25, keepX: x, keepZ: z });
     world.update(x, z);
   }
   sitFrom.copy(camera.position);
@@ -377,35 +370,13 @@ function beginSitVisual(pose, resumed) {
   return ticket;
 }
 
-async function loadRecipe(pose, ticket) {
-  const recipe = await fetch(`/api/world/spots/${pose.spot_id}/recipe`);
-  if (ticket !== sitTicket || !sitting) return;
-  if (recipe.ok) {
-    const body = await recipe.json();
-    if (ticket !== sitTicket || !sitting) return;
-    if (diorama) diorama.dispose();
-    diorama = await createDiorama(
-      { id: body.spot_id, x: pose.x, z: pose.z, yaw: body.yaw },
-      body.blocks,
-    );
-    if (ticket !== sitTicket || !sitting) {
-      diorama.dispose();
-      diorama = null;
-      return;
-    }
-    scene.add(diorama.object);
-    diorama.update(performance.now() / 1000);
-  }
+function scheduleVideo() {
   videoAt = performance.now() + 1200;
 }
 
 function dropDiorama() {
   youtube.hide();
   videoAt = 0;
-  if (!diorama) return;
-  const leaving = diorama;
-  diorama = null;
-  setTimeout(() => leaving.dispose(), 0);
 }
 
 function releaseSeat() {
@@ -413,7 +384,6 @@ function releaseSeat() {
   dropDiorama();
   if (world && seat) world.markClaimed(seat.spot_id, false);
   seat = null;
-  if (world) world.setVeil(null);
   setSeated(false);
   y = groundHeight(x, z);
 }
