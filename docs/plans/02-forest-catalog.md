@@ -285,17 +285,17 @@ Use an offline image-to-3D model, not a live one. [Hunyuan3D-WorldClaw](https://
 
 If a TripoSR mesh fails the checks below, keep the procedural builder for that one name and say so in `web/assets/PROMPTS.md`. Thin parts are the likely failures: heron legs, the vine noose, dragonfly wings, glass leaves. A collapsed silhouette is worse than the procedural shape.
 
-How to run TripoSR, once, on a machine with a GPU. Not in `pytest`, not in uvicorn, not in the browser:
+How to run TripoSR, once, for one kit. Not in `pytest`, not in uvicorn, not in the browser:
 
 ```bash
-python run.py path/to/object.png --output-dir output/ --bake-texture --texture-resolution 1024
+python tools/generate_kit_mesh.py <kit-name>
 ```
 
-The script writes an OBJ. Convert it to one GLB before commit. Decimate until the triangle budget holds. Copy TripoSR's MIT `LICENSE` to `web/assets/LICENSE-TRIPOSR.txt`.
+The reference in `web/assets/kits/references/` is already cut out, with the subject's longer side at 90% of the frame. The script clones TripoSR outside the repo, runs marching cubes at resolution 256, decimates to at most 100000 triangles before baking one 2048 atlas, and writes `web/assets/kits/<kit-name>.glb`. Image up stays +Y, the base sits on `y = 0`, and the material is non-metallic. A mesh whose silhouette does not overlap the reference is not written. Copy TripoSR's MIT `LICENSE` to `web/assets/LICENSE-TRIPOSR.txt`.
 
 - One prompt, one object. The prompt may not ask for a forest map, a river, or seats. Those already exist.
 - Make a single object on a plain background, then run image-to-3D. Export one glTF binary, Y-up, base on `y = 0`, 1 unit = 1 meter, at the unscaled size named in the kit and landmark sections. The chunk `scale` field multiplies that file.
-- A scatter kit used more than ten times in one chunk must be a single geometry and a single material, at most `50000` triangles, with one albedo at most `2048` px. Merge parts before commit so `InstancedMesh` can draw it.
+- A scatter kit used more than ten times in one chunk must be a single geometry and a single material, at most `100000` triangles, with one albedo at most `2048` px. Merge parts before commit so `InstancedMesh` can draw it.
 - A landmark file may be a group, at most `400000` triangles, textures at most `2048` px. Only one copy of each landmark is drawn.
 - No skeleton and no embedded clip. Sway, bob, hop, and scroll stay in the client and move the whole instance.
 - Write the prompt, the generator name, and the revision into `web/assets/PROMPTS.md` next to the filename.
@@ -341,7 +341,7 @@ Prompts, used as written:
 - `fern_nave`: a path between two rows of tall ferns and staghorns, center empty
 - `sundew_jewel`: one giant sundew with smaller sundews and pale crystals
 
-`tests/test_assets.py` does not run a model. It fails if a committed `.glb` is named for an unknown kit or landmark, if a scatter-kit file has more than one mesh or more than `50000` triangles, or if a landmark file has more than `400000` triangles. Missing files are allowed. `pytest` must pass on a machine with no GPU.
+`tests/test_assets.py` does not run a model. It fails if a committed `.glb` is named for an unknown kit or landmark, if a scatter-kit file has more than one mesh or more than `100000` triangles, or if a landmark file has more than `400000` triangles. Missing files are allowed. `pytest` must pass on a machine with no GPU.
 
 ## Task 4: Stream the client
 
