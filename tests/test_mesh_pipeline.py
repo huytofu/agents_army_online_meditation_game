@@ -2,6 +2,8 @@
 
 import json
 import struct
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -57,6 +59,17 @@ def _triangle():
     normals = np.array([[0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0]])
     texture = Image.new("RGBA", (4, 4), (20, 180, 40, 255))
     return vertices, faces, uvs, texture, normals
+
+
+def test_script_runs_from_the_documented_command():
+    result = subprocess.run(
+        [sys.executable, "tools/generate_kit_mesh.py", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "kit-name" in result.stdout or "heron" in result.stdout
 
 
 def test_exported_glb_is_nonmetallic(tmp_path):
