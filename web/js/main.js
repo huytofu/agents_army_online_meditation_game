@@ -5,6 +5,7 @@ import { createChunkWorld } from "./chunks.js";
 import { attachControls, consume, onEnter, setSeated } from "./controls.js";
 import { createDiorama } from "./diorama.js";
 import { groundHeight } from "./ground.js";
+import { bindPanelGroup } from "./hud.js";
 import { biomeAt, loadMeta, paletteOf } from "./meta.js";
 import { createMinimap } from "./minimap.js";
 import { SEAT_BLEND_MS, seatBlend, seatOffset } from "./seat.js";
@@ -22,6 +23,11 @@ const WALK_CYCLE_SPEED = 0.15;
 const SIT_RANGE = 2.5;
 const TARGET_ACQUIRE = (10 * Math.PI) / 180;
 const TARGET_HOLD = (18 * Math.PI) / 180;
+
+bindPanelGroup([
+  [document.querySelector("#minimap-toggle"), document.querySelector("#minimap-body")],
+  [document.querySelector("#keys-toggle"), document.querySelector("#keys-body")],
+]);
 
 const canvas = document.querySelector("#view");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
