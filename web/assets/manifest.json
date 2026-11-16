@@ -2,7 +2,7 @@
   "kits": [
     "acid_cup",
     "beetle_lamp",
-    // "blossom_tree", // glb file needs revision
+    "blossom_tree",
     "brine_skipper",
     "butterfly",
     "dirt_patch",
@@ -29,7 +29,7 @@
     "mushroom_white",
     "pitcher",
     "rabbit",
-    // "snap_maw", // glb file needs revision
+    "snap_maw",
     "songbird",
     // "spiral_tree", // glb file needs revision
     "staghorn",
