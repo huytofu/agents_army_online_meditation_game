@@ -20,3 +20,7 @@ Common pieces added after that set, also TripoSR, same triangle cap:
 - One biome only: monkey in hanging vines, water_puddle in the river, mud_patch in the carnivorous bog, tree_dead in the cathedral, mushroom_white in strange fauna.
 
 Prompts are the sentences in `docs/plans/02-forest-catalog.md` under Task 3.
+
+The common trees, mushrooms, animals, and ground patches below were rebuilt from new reference images at marching cubes resolution 320, with a baked 2048 texture, still at most 50000 triangles. Their images are in `kits/references/`.
+
+tree_tall, tree_yellow, tree_branched, tree_broad, mushroom_brown, mushroom_gold, mushroom_white, grass_patch, dirt_patch, mud_patch, fallen_leaves, water_puddle, monkey, rabbit, worm, songbird, butterfly, lantern_frog, loris, kite_bird, beetle_lamp, brine_skipper.
