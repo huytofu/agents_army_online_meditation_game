@@ -103,5 +103,17 @@ export function commonParts(name) {
     ];
   }
   if (name === "tree_broad") return canopyTree(0x244232, 1.35);
+  if (name === "tall_tree_upsized") return canopyTree(0x1d3328, 2.5);
+  if (name === "tall_tree_giant") return canopyTree(0x163024, 7);
+  if (name === "tree_broad_upsized") return canopyTree(0x244232, 2);
+  if (name === "tree_broad_giant") return canopyTree(0x1b3328, 3.9);
+  if (name === "rainforest_twined_trees") {
+    const shift = (parts, x) => parts.map((part) => ({ ...part, x: part.x + x }));
+    return [
+      ...shift(canopyTree(0x1d3328, 1.05), -2.2),
+      ...shift(canopyTree(0x244232, 1.15), 2.2),
+      piece(new THREE.CylinderGeometry(0.04, 0.04, 4.4, 5), 0x3e6b45, 0, 4.2, 0, 0, 0, Math.PI / 2),
+    ];
+  }
   return null;
 }
