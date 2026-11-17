@@ -115,6 +115,10 @@
     "kind": "standing",
     "height": 0.45
   },
+  "rainforest_twined_trees": {
+    "kind": "standing",
+    "height": 8.28
+  },
   "snap_maw": {
     "kind": "standing",
     "height": 0.7
@@ -135,6 +139,14 @@
     "kind": "standing",
     "height": 0.45
   },
+  "tall_tree_giant": {
+    "kind": "standing",
+    "height": 56.0
+  },
+  "tall_tree_upsized": {
+    "kind": "standing",
+    "height": 20.0
+  },
   "tree_branched": {
     "kind": "standing",
     "height": 9.0
@@ -142,6 +154,14 @@
   "tree_broad": {
     "kind": "standing",
     "height": 11.0
+  },
+  "tree_broad_giant": {
+    "kind": "standing",
+    "height": 31.45
+  },
+  "tree_broad_upsized": {
+    "kind": "standing",
+    "height": 15.73
   },
   "tree_dead": {
     "kind": "standing",

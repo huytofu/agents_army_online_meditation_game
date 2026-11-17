@@ -71,6 +71,80 @@ def test_native_pieces_stay_in_one_biome():
     assert "flower_pink" in moss_kits
 
 
+SPAWN_GROVE = (
+    ("rainforest_twined_trees", -8.0, 18.0),
+    ("tall_tree_upsized", -42.0, 14.0),
+    ("tree_broad_upsized", -18.0, 36.0),
+    ("tall_tree_giant", -24.0, 92.0),
+    ("tree_broad_giant", -118.0, 48.0),
+)
+
+
+def test_spawn_grove_places_every_new_forest_item():
+    blocks = []
+    for _kit, x, z in SPAWN_GROVE:
+        blocks.extend(_chunk(x, z))
+    found = {(block["kit"], block["x"], block["z"]) for block in blocks}
+    for kit, x, z in SPAWN_GROVE:
+        assert (kit, x, z) in found
+        match = next(block for block in blocks if block["kit"] == kit and block["x"] == x and block["z"] == z)
+        assert match["scale"] == 1
+        assert math.hypot(x + 24, z) > 10
+        assert biome_at(x, z) == "moss_plain"
+
+
+def test_upsized_trees_repeat_and_giants_stay_rare():
+    tall_homes = {
+        biome
+        for biome, specs in SCATTER.items()
+        if any(kit == "tall_tree_upsized" for kit, _count, _scale in specs)
+    }
+    broad_homes = {
+        biome
+        for biome, specs in SCATTER.items()
+        if any(kit == "tree_broad_upsized" for kit, _count, _scale in specs)
+    }
+    assert tall_homes == {"moss_plain", "cathedral_trees", "fern_sea", "hanging_vines"}
+    assert broad_homes == {
+        "moss_plain",
+        "cathedral_trees",
+        "valley_bloom",
+        "fern_sea",
+        "lantern_orchard",
+        "amber_herd",
+    }
+    for biome, specs in SCATTER.items():
+        names = [kit for kit, _count, _scale in specs]
+        assert "tall_tree_giant" not in names
+        assert "tree_broad_giant" not in names
+        assert "rainforest_twined_trees" not in names
+    cathedral = _chunk(700, -1550)
+    assert any(block["kit"] == "tall_tree_upsized" for block in cathedral)
+    assert all(block["kit"] != "tall_tree_giant" for block in cathedral)
+    far_moss = _chunk(-1100, 200)
+    assert any(block["kit"] == "tree_broad_upsized" for block in far_moss)
+    assert all(block["kit"] not in {"tall_tree_giant", "tree_broad_giant", "rainforest_twined_trees"} for block in far_moss)
+    from forest_server.world.biomes import river_z
+
+    leafy = {
+        "tall_tree_upsized",
+        "tall_tree_giant",
+        "tree_broad_upsized",
+        "tree_broad_giant",
+        "rainforest_twined_trees",
+    }
+    river = _chunk(0, river_z(0))
+    for block in river:
+        if block["kit"] in leafy:
+            assert biome_at(block["x"], block["z"]) != "river"
+    assert all(block["kit"] not in {"tall_tree_giant", "tree_broad_giant", "rainforest_twined_trees"} for block in river)
+    hanging = _chunk(280, 1460)
+    assert any(
+        block["kit"] == "rainforest_twined_trees" and biome_at(block["x"], block["z"]) == "hanging_vines"
+        for block in hanging
+    )
+
+
 def test_landmark_recipes():
     great = landmarks_in_chunk(54, 50)
     sheets = [block for mark in great for block in mark["blocks"] if block["kit"] == "waterfall_sheet"]

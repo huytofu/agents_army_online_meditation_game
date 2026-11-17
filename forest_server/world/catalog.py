@@ -22,7 +22,7 @@ from forest_server.world.constants import (
 )
 from forest_server.world.landmarks import LANDMARKS
 from forest_server.world.spots import gathering_markers
-from forest_server.world.scatter import SCATTER
+from forest_server.world.scatter import ANCHORS, SCATTER
 
 PALETTES = {
     "moss_plain": {
@@ -146,6 +146,8 @@ def kit_names() -> list[str]:
     for specs in SCATTER.values():
         for kit, _count, _scale in specs:
             names.add(kit)
+    for kit, _x, _z, _rot_y, _scale in ANCHORS:
+        names.add(kit)
     for landmark in LANDMARKS:
         for block in landmark["blocks"]:
             names.add(block["kit"])

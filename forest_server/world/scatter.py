@@ -29,6 +29,8 @@ SCATTER = {
         ("tree_tall", 1, 1.0),
         ("tree_branched", 2, 1.0),
         ("tree_broad", 1, 1.0),
+        ("tall_tree_upsized", 1, 1.0),
+        ("tree_broad_upsized", 1, 1.0),
     ),
     "cathedral_trees": (
         ("tree", 10, (1.6, 2.4)),
@@ -40,6 +42,8 @@ SCATTER = {
         ("tree_dead", 3, 1.0),
         ("tree_tall", 2, (1.4, 1.8)),
         ("songbird", 1, 1.0),
+        ("tall_tree_upsized", 2, 1.0),
+        ("tree_broad_upsized", 1, 1.0),
     ),
     "river": (
         ("reed", 22, 1.0),
@@ -68,6 +72,7 @@ SCATTER = {
         ("butterfly", 5, 1.0),
         ("songbird", 2, 1.0),
         ("tree_yellow", 3, 1.0),
+        ("tree_broad_upsized", 1, 1.0),
     ),
     "carnivorous_bog": (
         ("pitcher", 16, 1.0),
@@ -94,6 +99,7 @@ SCATTER = {
         ("seed_head", 6, 1.0),
         ("butterfly", 6, 1.0),
         ("flower_gold", 4, 1.0),
+        ("tree_broad_upsized", 1, 1.0),
     ),
     "fern_sea": (
         ("fern", 40, 1.0),
@@ -105,6 +111,8 @@ SCATTER = {
         ("fallen_leaves", 6, 1.0),
         ("rabbit", 2, 1.0),
         ("tree_branched", 2, 1.0),
+        ("tall_tree_upsized", 1, 1.0),
+        ("tree_broad_upsized", 1, 1.0),
     ),
     "hanging_vines": (
         ("vine_strand", 18, 1.0),
@@ -113,6 +121,7 @@ SCATTER = {
         ("loris", 5, 1.0),
         ("cliff_wall", 4, 1.0),
         ("monkey", 4, 1.0),
+        ("tall_tree_upsized", 1, 1.0),
     ),
     "amber_herd": (
         ("seed_head", 16, 1.0),
@@ -126,6 +135,7 @@ SCATTER = {
         ("worm", 3, 1.0),
         ("songbird", 2, 1.0),
         ("tree_yellow", 2, 1.0),
+        ("tree_broad_upsized", 1, 1.0),
     ),
     "salt_mirror": (
         ("salt_crust", 16, 1.0),
@@ -138,6 +148,33 @@ SCATTER = {
 
 HANGING = {"vine_strand", "vine_noose", "epiphyte"}
 FLOATING = {"songbird", "butterfly"}
+
+# Fixed placements. The GLB scale is already meters, so every anchor uses scale 1.
+# Giants are wider than a chunk. The twined pair is one heavy mesh. Neither is repeated per chunk.
+# The first five stand in the moss plain, in view of spawn (-24, 0), outside the 10 m clear circle.
+ANCHORS = (
+    ("rainforest_twined_trees", -8.0, 18.0, 0.0, 1.0),
+    ("tall_tree_upsized", -42.0, 14.0, 1.2, 1.0),
+    ("tree_broad_upsized", -18.0, 36.0, 2.2, 1.0),
+    ("tall_tree_giant", -24.0, 92.0, 0.4, 1.0),
+    ("tree_broad_giant", -118.0, 48.0, 0.9, 1.0),
+    ("tall_tree_giant", 1040.0, -1720.0, 0.5, 1.0),
+    ("tall_tree_giant", -1460.0, -780.0, 1.7, 1.0),
+    ("tall_tree_giant", 40.0, 1280.0, 0.3, 1.0),
+    ("tall_tree_giant", -1560.0, 1720.0, 2.1, 1.0),
+    ("tree_broad_giant", 360.0, -1860.0, 1.1, 1.0),
+    ("tree_broad_giant", 1780.0, -420.0, 0.6, 1.0),
+    ("tree_broad_giant", -1780.0, -520.0, 2.4, 1.0),
+    ("tree_broad_giant", -640.0, 1680.0, 0.8, 1.0),
+    ("tree_broad_giant", 1680.0, 280.0, 1.5, 1.0),
+    ("rainforest_twined_trees", 280.0, 1460.0, 0.7, 1.0),
+    ("rainforest_twined_trees", -180.0, 1180.0, 1.4, 1.0),
+    ("rainforest_twined_trees", 620.0, 1680.0, 2.6, 1.0),
+    ("rainforest_twined_trees", 1120.0, -1280.0, 0.2, 1.0),
+    ("rainforest_twined_trees", -980.0, -640.0, 1.9, 1.0),
+    ("rainforest_twined_trees", -620.0, 360.0, 0.5, 1.0),
+    ("rainforest_twined_trees", 220.0, 560.0, 1.1, 1.0),
+)
 
 MOTION = {
     "fern": ("sway", 0.07, 5.0),
@@ -248,4 +285,17 @@ def scatter_for_chunk(cx: int, cz: int) -> list[dict]:
                         y_lift = 0.0
                     blocks.append(_block(kit, x, z, rot_y, scale, y_lift, variant))
                     break
+    blocks.extend(_anchors_for_chunk(cx, cz))
     return blocks
+
+
+def _anchors_for_chunk(cx: int, cz: int) -> list[dict]:
+    x0 = chunk_origin(cx)
+    z0 = chunk_origin(cz)
+    x1 = x0 + CHUNK_SIZE
+    z1 = z0 + CHUNK_SIZE
+    placed = []
+    for kit, x, z, rot_y, scale in ANCHORS:
+        if x0 <= x < x1 and z0 <= z < z1:
+            placed.append(_block(kit, x, z, rot_y, scale, 0.0, 0))
+    return placed

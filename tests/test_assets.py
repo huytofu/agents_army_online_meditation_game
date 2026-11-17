@@ -7,6 +7,11 @@ from forest_server.world.landmarks import LANDMARKS
 
 ROOT = Path("web/assets")
 LANDMARK_NAMES = {mark["name"] for mark in LANDMARKS}
+# Joined from authored multi-part models. They stay one mesh, over the generated-kit cap.
+AUTHORED_TRIANGLE_CAP = {
+    "rainforest_twined_trees": 800_000,
+    "tree_branched": 500_000,
+}
 
 
 def _glb_stats(path: Path) -> tuple[int, int]:
@@ -34,7 +39,7 @@ def test_committed_gltfs_match_the_catalog():
         assert path.stem in known
         mesh_count, triangles = _glb_stats(path)
         assert mesh_count == 1
-        assert triangles <= 100000
+        assert triangles <= AUTHORED_TRIANGLE_CAP.get(path.stem, 100_000)
     for path in landmarks:
         assert path.stem in LANDMARK_NAMES
         _mesh_count, triangles = _glb_stats(path)
