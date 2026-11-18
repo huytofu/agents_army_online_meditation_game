@@ -1,6 +1,6 @@
 import math
 
-from forest_server.world.biomes import AIRY_KITS, CARNIVOROUS_KITS, biome_at, chunk_index
+from forest_server.world.biomes import AIRY_KITS, CARNIVOROUS_KITS, RIVER_WET, biome_at, chunk_index, river_z
 from forest_server.world.landmarks import LANDMARKS, landmarks_in_chunk
 from forest_server.world.scatter import SCATTER, scatter_for_chunk
 
@@ -92,3 +92,25 @@ def test_landmark_recipes():
         if block["kit"] in AIRY_KITS:
             continue
         assert math.hypot(block["x"] - nave["x"], block["z"] - nave["z"]) > 1.2
+
+
+def test_water_puddles_stay_off_the_river():
+    # Disc radius matches the 1.2 m footprint. The whole disc stays off the wet channel.
+    radius = 0.6
+    chunks: set[tuple[int, int]] = set()
+    x = -2000.0
+    while x <= 2000.0 + 1e-6:
+        z = river_z(x)
+        if biome_at(x, z) == "river":
+            cx, cz = chunk_index(x), chunk_index(z)
+            for dz in range(-2, 3):
+                chunks.add((cx, cz + dz))
+        x += 8.0
+    puddles = 0
+    for cx, cz in chunks:
+        for block in scatter_for_chunk(cx, cz):
+            if block["kit"] != "water_puddle":
+                continue
+            puddles += 1
+            assert abs(block["z"] - river_z(block["x"])) >= RIVER_WET + radius
+    assert puddles > 0

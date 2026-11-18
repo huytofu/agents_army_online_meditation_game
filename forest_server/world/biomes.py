@@ -10,6 +10,13 @@ RIVER_SINES = ((60.0, 0.0018), (22.0, 0.006))
 RIVER_CORRIDOR = 55.0
 RIVER_WET = 16.0
 GORGE_KEEP = 90.0
+# Standing height is 1.7 m and the head sphere bottoms at 1.38 m, the neck.
+RIVER_NECK = 1.38
+# Keeps the sheet just above the bank so the rim does not flicker through it.
+RIVER_SURFACE_LIFT = 0.02
+# Ground quads are 2 m. A diagonal can shift river distance by about 3.6 m,
+# so the sheet stops this far inside the carved bank and the hills cannot cut it.
+RIVER_MESH_INSET = 4.0
 
 # (z_min, z_max, z_max_inclusive, columns of (x_min, x_max, x_max_inclusive, name))
 BANDS = (

@@ -323,18 +323,11 @@ async function addInstances(group, blocks, hidden) {
 
 function buildWater(meta, samples) {
   const ordered = [...samples].sort((a, b) => a.x - b.x);
+  const half = meta.river.wet - meta.river.mesh_inset;
   const positions = [];
-  for (let i = 0; i < ordered.length; i += 1) {
-    const sample = ordered[i];
-    const prev = ordered[Math.max(0, i - 1)];
-    const next = ordered[Math.min(ordered.length - 1, i + 1)];
-    const tx = next.x - prev.x || 1;
-    const tz = next.z - prev.z;
-    const length = Math.hypot(tx, tz) || 1;
-    const px = (-tz / length) * 16;
-    const pz = (tx / length) * 16;
-    positions.push(sample.x + px, sample.y, sample.z + pz);
-    positions.push(sample.x - px, sample.y, sample.z - pz);
+  for (const sample of ordered) {
+    positions.push(sample.x, sample.y, sample.z + half);
+    positions.push(sample.x, sample.y, sample.z - half);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
