@@ -16,7 +16,14 @@
   <body>
     <canvas id="view"></canvas>
     <div id="enter">Click to walk into the forest</div>
-    <p id="hint" class="fade">WASD move · mouse look · V view · F sit</p>
+    <div id="spawn-choice" hidden>
+      <div class="spawn-card">
+        <p>Welcome back. Resume the place you left, or start over on the moss.</p>
+        <button type="button" id="resume-place">Resume last place</button>
+        <button type="button" id="spawn-place">Start at the moss</button>
+      </div>
+    </div>
+    <p id="hint" class="fade">WASD move · mouse look · V view · F sit · Leave saves your place</p>
     <section id="youtube" hidden>
       <div class="youtube-frame"></div>
       <label>Video <input type="text" data-video maxlength="11" autocomplete="off" spellcheck="false" /></label>
@@ -54,6 +61,7 @@
           </svg>
           <span class="sr-only">Keyboard controls</span>
         </button>
+        <button type="button" id="leave-forest" class="hud-text-button" hidden>Leave</button>
       </div>
       <section id="minimap" aria-label="Your place in the forest">
         <div id="minimap-body" class="hud-body">
@@ -72,6 +80,8 @@
           <p class="keys-map"><kbd>M</kbd> show or hide the map</p>
           <p class="keys-label">Sit</p>
           <p class="keys-sit"><kbd>F</kbd> sit on a cushion when it lights up</p>
+          <p class="keys-label">Leave</p>
+          <p class="keys-leave">Leave saves this place for the next visit</p>
         </div>
       </section>
     </div>

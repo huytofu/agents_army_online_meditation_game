@@ -126,6 +126,18 @@ def _pose(value) -> dict:
     return dict(value)
 
 
+def _saved_coordinates(row) -> dict | None:
+    if row["saved_x"] is None:
+        return None
+    return {
+        "x": float(row["saved_x"]),
+        "y": float(row["saved_y"]),
+        "z": float(row["saved_z"]),
+        "yaw": float(row["saved_yaw"]),
+        "pitch": float(row["saved_pitch"]),
+    }
+
+
 def _public(row, token: str | None = None) -> dict:
     payload = {
         "session_id": str(row["id"]),
@@ -133,6 +145,8 @@ def _public(row, token: str | None = None) -> dict:
         "pose": _pose(row["pose"]),
         "youtube_video_id": row["youtube_video_id"],
     }
+    if "saved_x" in row.keys():
+        payload["saved_coordinates"] = _saved_coordinates(row)
     if token is not None:
         payload["token"] = token
     return payload
@@ -143,9 +157,12 @@ async def session_by_token_hash(token_hash: str) -> dict | None:
         result = await session.execute(
             text(
                 """
-                SELECT id, color, pose, youtube_video_id
-                FROM sessions
-                WHERE token_hash = :token_hash
+                SELECT s.id, s.color, s.pose, s.youtube_video_id,
+                       c.x AS saved_x, c.y AS saved_y, c.z AS saved_z,
+                       c.yaw AS saved_yaw, c.pitch AS saved_pitch
+                FROM sessions s
+                LEFT JOIN last_coordinates c ON c.session_id = s.id
+                WHERE s.token_hash = :token_hash
                 """
             ),
             {"token_hash": token_hash},
@@ -187,7 +204,107 @@ async def create_session(token: str | None) -> dict:
         "color": session_color(session_id),
         "pose": pose,
         "youtube_video_id": None,
+        "saved_coordinates": None,
     }
+
+
+def _walk_pose(x: float, y: float, z: float, yaw: float, pitch: float) -> dict:
+    return {
+        "x": x,
+        "y": y,
+        "z": z,
+        "yaw": yaw,
+        "pitch": pitch,
+        "mode": "walk",
+        "spot_id": None,
+    }
+
+
+async def _upsert_coordinates(session, session_id: str, pose: dict) -> None:
+    await session.execute(
+        text(
+            """
+            INSERT INTO last_coordinates (session_id, x, y, z, yaw, pitch)
+            VALUES (:session_id, :x, :y, :z, :yaw, :pitch)
+            ON CONFLICT (session_id) DO UPDATE
+            SET x = EXCLUDED.x,
+                y = EXCLUDED.y,
+                z = EXCLUDED.z,
+                yaw = EXCLUDED.yaw,
+                pitch = EXCLUDED.pitch,
+                saved_at = now()
+            """
+        ),
+        {
+            "session_id": session_id,
+            "x": pose["x"],
+            "y": pose["y"],
+            "z": pose["z"],
+            "yaw": pose["yaw"],
+            "pitch": pose["pitch"],
+        },
+    )
+
+
+async def _release_and_place(session, session_id: str, pose: dict) -> None:
+    await session.execute(
+        text("DELETE FROM spot_claims WHERE session_id = :session_id"),
+        {"session_id": session_id},
+    )
+    await session.execute(
+        text(
+            """
+            UPDATE sessions
+            SET pose = CAST(:pose AS jsonb), last_seen_at = now()
+            WHERE id = :id
+            """
+        ),
+        {"id": session_id, "pose": json.dumps(pose)},
+    )
+
+
+async def save_logout_coordinates(
+    session_id: str, x: float, y: float, z: float, yaw: float, pitch: float
+) -> None:
+    pose = _walk_pose(x, y, z, yaw, pitch)
+    async with get_session() as session:
+        await _release_and_place(session, session_id, pose)
+        await _upsert_coordinates(session, session_id, pose)
+        await session.commit()
+
+
+async def apply_start_choice(session_id: str, choice: str) -> dict:
+    if choice == "spawn":
+        pose = _spawn_pose()
+    else:
+        async with get_session() as session:
+            result = await session.execute(
+                text(
+                    """
+                    SELECT x, y, z, yaw, pitch
+                    FROM last_coordinates
+                    WHERE session_id = :session_id
+                    """
+                ),
+                {"session_id": session_id},
+            )
+            row = result.mappings().first()
+        if row is None:
+            pose = _spawn_pose()
+        else:
+            pose = _walk_pose(
+                float(row["x"]),
+                float(row["y"]),
+                float(row["z"]),
+                float(row["yaw"]),
+                float(row["pitch"]),
+            )
+    async with get_session() as session:
+        await _release_and_place(session, session_id, pose)
+        if choice == "spawn":
+            await _upsert_coordinates(session, session_id, pose)
+        await session.commit()
+    return pose
 
 
 async def update_pose(session_id: str, pose: dict) -> dict | None:

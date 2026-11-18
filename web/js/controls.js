@@ -9,6 +9,7 @@ let view = "third";
 let viewEdge = false;
 let sitEdge = false;
 let seated = false;
+let suppressEnter = false;
 let viewCanvas = null;
 const enterListeners = [];
 
@@ -31,9 +32,7 @@ export function attachControls(canvas) {
     for (const listener of enterListeners) listener();
   });
 
-  document.addEventListener("pointerlockchange", () => {
-    enter.hidden = seated || document.pointerLockElement === canvas;
-  });
+  document.addEventListener("pointerlockchange", syncEnter);
 
   document.addEventListener("mousemove", (event) => {
     if (seated || document.pointerLockElement !== canvas) return;
@@ -66,12 +65,33 @@ export function onEnter(listener) {
   enterListeners.push(listener);
 }
 
+function syncEnter() {
+  const enter = document.querySelector("#enter");
+  if (!enter) return;
+  const locked = Boolean(viewCanvas) && document.pointerLockElement === viewCanvas;
+  enter.hidden = suppressEnter || seated || locked;
+}
+
+export function suppressEnterGate(value) {
+  suppressEnter = Boolean(value);
+  syncEnter();
+}
+
+export function lockWalk() {
+  if (viewCanvas) viewCanvas.requestPointerLock();
+}
+
+export function setLook(nextYaw, nextPitch) {
+  yaw = nextYaw;
+  pitch = nextPitch;
+  clampPitch();
+}
+
 export function setSeated(value) {
   seated = Boolean(value);
-  const enter = document.querySelector("#enter");
   const locked = Boolean(viewCanvas) && document.pointerLockElement === viewCanvas;
   if (seated && locked) document.exitPointerLock();
-  enter.hidden = seated || (Boolean(viewCanvas) && document.pointerLockElement === viewCanvas);
+  syncEnter();
 }
 
 function axis(negative, positive) {

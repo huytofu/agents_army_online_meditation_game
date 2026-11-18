@@ -2,16 +2,19 @@
 
 import math
 import re
+from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from forest_server.database.repository import (
+    apply_start_choice,
     claim_spot,
     create_session,
     force_pose,
     pose_conflicts,
     release_claim_for_session,
+    save_logout_coordinates,
     session_by_token,
     set_youtube,
     spot_by_id,
@@ -51,13 +54,61 @@ class SearchBody(BaseModel):
     q: str = ""
 
 
+class LogoutBody(BaseModel):
+    token: str
+    x: float
+    y: float
+    z: float
+    yaw: float
+    pitch: float
+
+
+class StartBody(BaseModel):
+    token: str
+    choice: Literal["resume", "spawn"]
+
+
+WALK_LIMIT = 1996.0
+
+
 def _missing():
     return {"ok": False, "reason": "missing"}
+
+
+def _coordinates_in_forest(body: LogoutBody) -> bool:
+    numbers = (body.x, body.y, body.z, body.yaw, body.pitch)
+    if any(not math.isfinite(value) for value in numbers):
+        return False
+    return (
+        -WALK_LIMIT <= body.x <= WALK_LIMIT
+        and -WALK_LIMIT <= body.z <= WALK_LIMIT
+        and -100.0 <= body.y <= 100.0
+    )
 
 
 @router.post("/session")
 async def open_session(body: TokenBody) -> dict:
     return await create_session(body.token)
+
+
+@router.post("/logout")
+async def post_logout(body: LogoutBody) -> dict:
+    found = await session_by_token(body.token)
+    if found is None:
+        return _missing()
+    if not _coordinates_in_forest(body):
+        return {"ok": False, "reason": "out_of_bounds"}
+    await save_logout_coordinates(found["session_id"], body.x, body.y, body.z, body.yaw, body.pitch)
+    return {"ok": True}
+
+
+@router.post("/session/start")
+async def post_start(body: StartBody) -> dict:
+    found = await session_by_token(body.token)
+    if found is None:
+        return _missing()
+    pose = await apply_start_choice(found["session_id"], body.choice)
+    return {"ok": True, "pose": pose}
 
 
 @router.post("/pose")
