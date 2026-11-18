@@ -3,7 +3,7 @@ import subprocess
 
 from forest_server.world.ground import ground_height
 
-POINTS = ((0, 0), (10, -4), (-80, 120), (199, 199))
+POINTS = ((0, 0), (10, -4), (-80, 120), (199, 199), (0, 280), (0, 272), (0, 300))
 
 
 def test_node_ground_matches_python():

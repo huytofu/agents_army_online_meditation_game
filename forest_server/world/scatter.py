@@ -2,7 +2,7 @@
 
 import math
 
-from forest_server.world.biomes import biome_at, chunk_origin
+from forest_server.world.biomes import RIVER_WET, biome_at, chunk_origin, river_z
 from forest_server.world.constants import CHUNK_SIZE, SPAWN_X, SPAWN_Z, WORLD_MAX, WORLD_MIN, WORLD_SEED
 from forest_server.world.ground import ground_height
 from forest_server.world.rng import mulberry32
@@ -138,6 +138,8 @@ SCATTER = {
 
 HANGING = {"vine_strand", "vine_noose", "epiphyte"}
 FLOATING = {"songbird", "butterfly"}
+# water_puddle footprint is 1.2 m across.
+PUDDLE_RADIUS = 0.6
 
 MOTION = {
     "fern": ("sway", 0.07, 5.0),
@@ -233,6 +235,8 @@ def scatter_for_chunk(cx: int, cz: int) -> list[dict]:
                     if biome_at(x, z) != biome:
                         continue
                     if math.hypot(x - SPAWN_X, z - SPAWN_Z) < 10.0:
+                        continue
+                    if kit == "water_puddle" and abs(z - river_z(x)) < RIVER_WET + PUDDLE_RADIUS:
                         continue
                     if isinstance(scale_spec, tuple):
                         scale = scale_spec[0] + rng() * (scale_spec[1] - scale_spec[0])
