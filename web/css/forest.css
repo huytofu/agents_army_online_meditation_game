@@ -31,6 +31,52 @@ body {
   display: none;
 }
 
+#spawn-choice {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(29, 51, 40, 0.55);
+}
+
+#spawn-choice[hidden] {
+  display: none;
+}
+
+.spawn-card {
+  width: min(28rem, calc(100vw - 32px));
+  padding: 1.4rem 1.5rem 1.5rem;
+  border-radius: 16px;
+  background: rgba(29, 51, 40, 0.94);
+  box-shadow: 0 16px 40px rgba(20, 28, 22, 0.4);
+  text-align: center;
+}
+
+.spawn-card p {
+  margin: 0 0 1rem;
+  font-size: 1.35rem;
+  line-height: 1.35;
+}
+
+.spawn-card button {
+  margin: 0.35rem;
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  border-radius: 8px;
+  background: #efe6d4;
+  color: #1d3328;
+  font: inherit;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.spawn-card button:focus-visible {
+  outline: 2px solid #f4f1ea;
+  outline-offset: 2px;
+}
+
 #hint {
   position: fixed;
   left: 0;
@@ -205,9 +251,27 @@ body {
   color: #1d3328;
 }
 
-.hud-icon-button:focus-visible {
+.hud-icon-button:focus-visible,
+.hud-text-button:focus-visible {
   outline: 2px solid #f4f1ea;
   outline-offset: 2px;
+}
+
+.hud-text-button {
+  pointer-events: auto;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(29, 51, 40, 0.88);
+  color: #f4f1ea;
+  box-shadow: 0 10px 28px rgba(20, 28, 22, 0.35);
+  font: inherit;
+  cursor: pointer;
+}
+
+.hud-text-button[hidden] {
+  display: none;
 }
 
 .hud-icon-button svg {
@@ -274,6 +338,10 @@ kbd {
 
 .keys-sit kbd {
   width: 2.3rem;
+}
+
+.keys-leave {
+  margin: 0.35rem 0 0;
 }
 
 #minimap-view {

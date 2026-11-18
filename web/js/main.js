@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 import { createAvatar } from "./avatar.js";
 import { createChunkWorld } from "./chunks.js";
-import { attachControls, consume, onEnter, setSeated } from "./controls.js";
+import { attachControls, consume, lockWalk, onEnter, setLook, setSeated, suppressEnterGate } from "./controls.js";
 import { groundHeight } from "./ground.js";
 import { bindPanelGroup, mapToggleKey } from "./hud.js";
 import { biomeAt, loadMeta, paletteOf } from "./meta.js";
@@ -73,6 +73,9 @@ let toSun = fromSun.clone();
 let fromDensity = 0.018;
 let toDensity = 0.018;
 let token = localStorage.getItem("forest_token");
+let savedCoordinates = null;
+let present = false;
+let leaving = false;
 let sitting = false;
 let seat = null;
 let target = null;
@@ -111,6 +114,22 @@ const youtube = createYoutubePanel(async (videoId) => {
 attachControls(canvas);
 onEnter(() => {
   void resumeSession();
+});
+document.querySelector("#leave-forest").addEventListener("click", (event) => {
+  event.stopPropagation();
+  void leaveForest();
+});
+document.querySelector("#resume-place").addEventListener("click", () => {
+  beginChosenEntry("resume");
+  void chooseStart("resume");
+});
+document.querySelector("#spawn-place").addEventListener("click", () => {
+  beginChosenEntry("spawn");
+  void chooseStart("spawn");
+});
+document.addEventListener("pointerlockchange", () => {
+  const choosing = !document.querySelector("#spawn-choice").hidden;
+  if (choosing && document.pointerLockElement === canvas) document.exitPointerLock();
 });
 window.addEventListener("resize", resize);
 loadMeta().then((payload) => {
@@ -316,21 +335,108 @@ async function postJson(url, body) {
 }
 
 async function postPose() {
-  if (!token || sitting) return;
+  if (!token || sitting || !present) return;
   await postJson("/api/pose", { token, x, y, z, yaw, pitch });
 }
 
+function showLeave(shown) {
+  document.querySelector("#leave-forest").hidden = !shown;
+}
+
+function placeWalking(pose) {
+  if (sitting) {
+    sitTicket += 1;
+    releaseSeat();
+  }
+  x = pose.x;
+  y = pose.y;
+  z = pose.z;
+  yaw = pose.yaw || 0;
+  pitch = pose.pitch || 0;
+  setLook(yaw, pitch);
+  avatar.object.position.set(x, y, z);
+  avatar.object.rotation.y = yaw;
+}
+
+function showChoice() {
+  present = false;
+  showLeave(false);
+  document.querySelector("#spawn-choice").hidden = false;
+  suppressEnterGate(true);
+  if (document.pointerLockElement === canvas) document.exitPointerLock();
+}
+
+function enterWorld() {
+  document.querySelector("#spawn-choice").hidden = true;
+  suppressEnterGate(false);
+  present = true;
+  showLeave(true);
+}
+
 async function resumeSession() {
+  if (leaving) return;
   const opened = await postJson("/api/session", { token });
-  if (!opened.token) return;
+  if (!opened.token || leaving) return;
   token = opened.token;
+  savedCoordinates = opened.saved_coordinates || null;
   localStorage.setItem("forest_token", token);
   avatar.setColor(opened.color);
   youtube.setDraft(opened.youtube_video_id);
+  if (!present && opened.saved_coordinates) {
+    showChoice();
+    return;
+  }
   if (opened.pose?.mode === "sit" && opened.pose.spot_id) {
     beginSitVisual(opened.pose, true);
     scheduleVideo();
   }
+  enterWorld();
+}
+
+function beginChosenEntry(choice) {
+  document.querySelector("#spawn-choice").hidden = true;
+  suppressEnterGate(true);
+  if (choice === "spawn") {
+    placeWalking({ x: SPAWN_X, y: groundHeight(SPAWN_X, SPAWN_Z), z: SPAWN_Z, yaw: 0, pitch: 0 });
+  } else if (savedCoordinates) {
+    placeWalking(savedCoordinates);
+  }
+  lockWalk();
+}
+
+async function chooseStart(choice) {
+  if (!token) return;
+  const result = await postJson("/api/session/start", { token, choice });
+  if (!result.ok || !result.pose) {
+    document.querySelector("#spawn-choice").hidden = false;
+    if (document.pointerLockElement === canvas) document.exitPointerLock();
+    return;
+  }
+  placeWalking(result.pose);
+  enterWorld();
+  if (document.pointerLockElement !== canvas) lockWalk();
+}
+
+async function leaveForest() {
+  if (!token || !present || leaving) return;
+  leaving = true;
+  present = false;
+  const feet = { token, x, y, z, yaw, pitch };
+  showLeave(false);
+  suppressEnterGate(true);
+  if (document.pointerLockElement === canvas) document.exitPointerLock();
+  const saved = await postJson("/api/logout", feet);
+  leaving = false;
+  if (!saved.ok) {
+    suppressEnterGate(false);
+    enterWorld();
+    return;
+  }
+  if (sitting) {
+    sitTicket += 1;
+    releaseSeat();
+  }
+  suppressEnterGate(false);
 }
 
 async function pressSit() {
